@@ -8,6 +8,7 @@
 package io.camunda.application.commons.search;
 
 import io.camunda.application.commons.condition.ConditionalOnSecondaryStorageType;
+import io.camunda.configuration.SecondaryStorage.SecondaryStorageType;
 import io.camunda.search.clients.DocumentBasedSearchClient;
 import io.camunda.search.clients.SearchClientBasedQueryExecutor;
 import io.camunda.search.clients.reader.AuthorizationDocumentReader;
@@ -68,7 +69,6 @@ import io.camunda.search.clients.reader.VariableDocumentReader;
 import io.camunda.search.clients.reader.VariableReader;
 import io.camunda.search.clients.transformers.ServiceTransformers;
 import io.camunda.search.connect.configuration.ConnectConfiguration;
-import io.camunda.search.connect.configuration.DatabaseConfig;
 import io.camunda.webapps.schema.descriptors.IndexDescriptors;
 import io.camunda.webapps.schema.descriptors.index.AuthorizationIndex;
 import io.camunda.webapps.schema.descriptors.index.DecisionIndex;
@@ -76,10 +76,11 @@ import io.camunda.webapps.schema.descriptors.index.DecisionRequirementsIndex;
 import io.camunda.webapps.schema.descriptors.index.FormIndex;
 import io.camunda.webapps.schema.descriptors.index.GroupIndex;
 import io.camunda.webapps.schema.descriptors.index.MappingRuleIndex;
-import io.camunda.webapps.schema.descriptors.index.MetricIndex;
 import io.camunda.webapps.schema.descriptors.index.ProcessIndex;
 import io.camunda.webapps.schema.descriptors.index.RoleIndex;
 import io.camunda.webapps.schema.descriptors.index.TenantIndex;
+import io.camunda.webapps.schema.descriptors.index.UsageMetricIndex;
+import io.camunda.webapps.schema.descriptors.index.UsageMetricTUIndex;
 import io.camunda.webapps.schema.descriptors.index.UserIndex;
 import io.camunda.webapps.schema.descriptors.template.BatchOperationTemplate;
 import io.camunda.webapps.schema.descriptors.template.DecisionInstanceTemplate;
@@ -98,7 +99,10 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnRestGatewayEnabled
-@ConditionalOnSecondaryStorageType({DatabaseConfig.ELASTICSEARCH, DatabaseConfig.OPENSEARCH})
+@ConditionalOnSecondaryStorageType({
+  SecondaryStorageType.elasticsearch,
+  SecondaryStorageType.opensearch
+})
 public class SearchClientReaderConfiguration {
 
   @Bean
@@ -288,13 +292,13 @@ public class SearchClientReaderConfiguration {
   @Bean
   public UsageMetricsReader usageMetricsReader(
       final SearchClientBasedQueryExecutor executor, final IndexDescriptors descriptors) {
-    return new UsageMetricsDocumentReader(executor, descriptors.get(MetricIndex.class));
+    return new UsageMetricsDocumentReader(executor, descriptors.get(UsageMetricIndex.class));
   }
 
   @Bean
   public UsageMetricsTUReader usageMetricsTUReader(
       final SearchClientBasedQueryExecutor executor, final IndexDescriptors descriptors) {
-    return new UsageMetricsTUDocumentReader(executor, descriptors.get(MetricIndex.class));
+    return new UsageMetricsTUDocumentReader(executor, descriptors.get(UsageMetricTUIndex.class));
   }
 
   @Bean

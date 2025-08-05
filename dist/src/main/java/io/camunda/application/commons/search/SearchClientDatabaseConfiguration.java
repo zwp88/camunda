@@ -10,6 +10,7 @@ package io.camunda.application.commons.search;
 import io.camunda.application.commons.condition.ConditionalOnSecondaryStorageDisabled;
 import io.camunda.application.commons.condition.ConditionalOnSecondaryStorageEnabled;
 import io.camunda.application.commons.condition.ConditionalOnSecondaryStorageType;
+import io.camunda.configuration.SecondaryStorage.SecondaryStorageType;
 import io.camunda.search.clients.CamundaSearchClients;
 import io.camunda.search.clients.auth.ResourceAccessDelegatingController;
 import io.camunda.search.clients.impl.NoDBSearchClientsProxy;
@@ -38,12 +39,12 @@ import io.camunda.search.clients.reader.SequenceFlowReader;
 import io.camunda.search.clients.reader.TenantMemberReader;
 import io.camunda.search.clients.reader.TenantReader;
 import io.camunda.search.clients.reader.UsageMetricsReader;
+import io.camunda.search.clients.reader.UsageMetricsTUReader;
 import io.camunda.search.clients.reader.UserReader;
 import io.camunda.search.clients.reader.UserTaskReader;
 import io.camunda.search.clients.reader.VariableReader;
 import io.camunda.search.clients.reader.impl.NoopAuthorizationReader;
 import io.camunda.search.connect.configuration.ConnectConfiguration;
-import io.camunda.search.connect.configuration.DatabaseConfig;
 import io.camunda.search.connect.es.ElasticsearchConnector;
 import io.camunda.search.connect.os.OpensearchConnector;
 import io.camunda.search.es.clients.ElasticsearchSearchClient;
@@ -59,7 +60,7 @@ import org.springframework.context.annotation.Configuration;
 public class SearchClientDatabaseConfiguration {
 
   @Bean
-  @ConditionalOnSecondaryStorageType(DatabaseConfig.ELASTICSEARCH)
+  @ConditionalOnSecondaryStorageType(SecondaryStorageType.elasticsearch)
   public ElasticsearchSearchClient elasticsearchSearchClient(
       final ConnectConfiguration configuration) {
     final var connector = new ElasticsearchConnector(configuration);
@@ -68,7 +69,7 @@ public class SearchClientDatabaseConfiguration {
   }
 
   @Bean
-  @ConditionalOnSecondaryStorageType(DatabaseConfig.OPENSEARCH)
+  @ConditionalOnSecondaryStorageType(SecondaryStorageType.opensearch)
   public OpensearchSearchClient opensearchSearchClient(final ConnectConfiguration configuration) {
     final var connector = new OpensearchConnector(configuration);
     final var opensearch = connector.createClient();
@@ -125,6 +126,7 @@ public class SearchClientDatabaseConfiguration {
       final TenantReader tenantReader,
       final TenantMemberReader tenantMemberReader,
       final UsageMetricsReader usageMetricsReader,
+      final UsageMetricsTUReader usageMetricsTUReader,
       final UserReader userReader,
       final UserTaskReader userTaskReader,
       final VariableReader variableReader) {
@@ -153,6 +155,7 @@ public class SearchClientDatabaseConfiguration {
         tenantReader,
         tenantMemberReader,
         usageMetricsReader,
+        usageMetricsTUReader,
         userReader,
         userTaskReader,
         variableReader);
