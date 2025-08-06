@@ -19,16 +19,20 @@ import static org.springframework.security.oauth2.jose.jws.SignatureAlgorithm.RS
 
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
-import io.camunda.authentication.CamundaJwtAuthenticationConverter;
 import io.camunda.authentication.CamundaUserDetailsService;
 import io.camunda.authentication.ConditionalOnAuthenticationMethod;
 import io.camunda.authentication.ConditionalOnProtectedApi;
 import io.camunda.authentication.ConditionalOnUnprotectedApi;
+import io.camunda.authentication.converter.OidcTokenAuthenticationConverter;
+import io.camunda.authentication.converter.OidcUserAuthenticationConverter;
+import io.camunda.authentication.converter.TokenClaimsConverter;
+import io.camunda.authentication.converter.UsernamePasswordAuthenticationTokenConverter;
 import io.camunda.authentication.csrf.CsrfProtectionRequestMatcher;
 import io.camunda.authentication.filters.AdminUserCheckFilter;
 import io.camunda.authentication.filters.OAuth2RefreshTokenFilter;
 import io.camunda.authentication.filters.WebApplicationAuthorizationCheckFilter;
 import io.camunda.authentication.handler.AuthFailureHandler;
+import io.camunda.security.auth.CamundaAuthenticationConverter;
 import io.camunda.security.auth.CamundaAuthenticationProvider;
 import io.camunda.security.configuration.SecurityConfiguration;
 import io.camunda.security.configuration.headers.HeaderConfiguration;
@@ -36,6 +40,7 @@ import io.camunda.security.configuration.headers.values.FrameOptionMode;
 import io.camunda.security.entity.AuthenticationMethod;
 import io.camunda.security.reader.ResourceAccessProvider;
 import io.camunda.service.GroupServices;
+import io.camunda.service.MappingRuleServices;
 import io.camunda.service.RoleServices;
 import io.camunda.service.TenantServices;
 import io.camunda.service.UserServices;
@@ -389,15 +394,20 @@ public class WebSecurityConfig {
   @Configuration
   @ConditionalOnAuthenticationMethod(AuthenticationMethod.BASIC)
   public static class BasicConfiguration {
+
+    @Bean
+    public CamundaAuthenticationConverter<Authentication> usernamePasswordAuthenticationConverter(
+        final RoleServices roleServices,
+        final GroupServices groupServices,
+        final TenantServices tenantServices) {
+      return new UsernamePasswordAuthenticationTokenConverter(
+          roleServices, groupServices, tenantServices);
+    }
+
     @Bean
     @ConditionalOnMissingBean(UserDetailsService.class)
-    public CamundaUserDetailsService camundaUserDetailsService(
-        final UserServices userServices,
-        final RoleServices roleServices,
-        final TenantServices tenantServices,
-        final GroupServices groupServices) {
-      return new CamundaUserDetailsService(
-          userServices, roleServices, tenantServices, groupServices);
+    public CamundaUserDetailsService camundaUserDetailsService(final UserServices userServices) {
+      return new CamundaUserDetailsService(userServices);
     }
 
     @Bean
@@ -515,6 +525,34 @@ public class WebSecurityConfig {
   @Configuration
   @ConditionalOnAuthenticationMethod(AuthenticationMethod.OIDC)
   public static class OidcConfiguration {
+
+    @Bean
+    public TokenClaimsConverter tokenClaimsConverter(
+        final MappingRuleServices mappingRuleServices,
+        final TenantServices tenantServices,
+        final RoleServices roleServices,
+        final GroupServices groupServices,
+        final SecurityConfiguration securityConfiguration) {
+      return new TokenClaimsConverter(
+          mappingRuleServices, tenantServices, roleServices, groupServices, securityConfiguration);
+    }
+
+    @Bean
+    public CamundaAuthenticationConverter<Authentication> oidcTokenAuthenticationConverter(
+        final TokenClaimsConverter tokenClaimsConverter) {
+      return new OidcTokenAuthenticationConverter(tokenClaimsConverter);
+    }
+
+    @Bean
+    public CamundaAuthenticationConverter<Authentication> oidcUserAuthenticationConverter(
+        final OAuth2AuthorizedClientRepository authorizedClientRepository,
+        final JwtDecoder jwtDecoder,
+        final TokenClaimsConverter tokenClaimsConverter,
+        final HttpServletRequest request) {
+      return new OidcUserAuthenticationConverter(
+          authorizedClientRepository, jwtDecoder, tokenClaimsConverter, request);
+    }
+
     @Bean
     public ClientRegistrationRepository clientRegistrationRepository(
         final SecurityConfiguration securityConfiguration) {
@@ -588,7 +626,6 @@ public class WebSecurityConfig {
         final HttpSecurity httpSecurity,
         final AuthFailureHandler authFailureHandler,
         final JwtDecoder jwtDecoder,
-        final CamundaJwtAuthenticationConverter converter,
         final SecurityConfiguration securityConfiguration,
         final CookieCsrfTokenRepository csrfTokenRepository,
         final OAuth2AuthorizedClientRepository authorizedClientRepository,
@@ -616,12 +653,7 @@ public class WebSecurityConfig {
               .formLogin(AbstractHttpConfigurer::disable)
               .anonymous(AbstractHttpConfigurer::disable)
               .oauth2ResourceServer(
-                  oauth2 ->
-                      oauth2.jwt(
-                          jwtConfigurer ->
-                              jwtConfigurer
-                                  .decoder(jwtDecoder)
-                                  .jwtAuthenticationConverter(converter)))
+                  oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder)))
               .oauth2Login(AbstractHttpConfigurer::disable)
               .oidcLogout(AbstractHttpConfigurer::disable)
               .logout(AbstractHttpConfigurer::disable);
@@ -640,7 +672,6 @@ public class WebSecurityConfig {
         final AuthFailureHandler authFailureHandler,
         final ClientRegistrationRepository clientRegistrationRepository,
         final JwtDecoder jwtDecoder,
-        final CamundaJwtAuthenticationConverter converter,
         final SecurityConfiguration securityConfiguration,
         final CamundaAuthenticationProvider authenticationProvider,
         final ResourceAccessProvider resourceAccessProvider,
@@ -665,12 +696,7 @@ public class WebSecurityConfig {
               .formLogin(AbstractHttpConfigurer::disable)
               .anonymous(AbstractHttpConfigurer::disable)
               .oauth2ResourceServer(
-                  oauth2 ->
-                      oauth2.jwt(
-                          jwtConfigurer ->
-                              jwtConfigurer
-                                  .decoder(jwtDecoder)
-                                  .jwtAuthenticationConverter(converter)))
+                  oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder)))
               .oauth2Login(
                   oauthLoginConfigurer -> {
                     oauthLoginConfigurer
