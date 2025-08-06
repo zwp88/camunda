@@ -8,6 +8,7 @@
 package io.camunda.tasklist.qa.backup.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import io.camunda.client.CamundaClient;
 import io.camunda.tasklist.qa.backup.BackupRestoreTestContext;
@@ -17,11 +18,11 @@ import io.camunda.tasklist.util.ThreadUtil;
 import io.camunda.tasklist.webapp.api.rest.v1.entities.SaveVariablesRequest;
 import io.camunda.tasklist.webapp.dto.VariableInputDTO;
 import io.camunda.webapps.schema.descriptors.template.DraftTaskVariableTemplate;
-import io.camunda.webapps.schema.descriptors.template.TaskTemplate;
 import io.camunda.webapps.schema.entities.usertask.TaskState;
 import io.camunda.zeebe.model.bpmn.Bpmn;
 import io.camunda.zeebe.model.bpmn.BpmnModelInstance;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -94,42 +95,44 @@ public abstract class AbstractBackupRestoreDataGenerator implements BackupRestor
 
   @Override
   public void assertData() throws IOException {
-    try {
-      final var response = tasklistAPICaller.getAllTasks();
-      assertThat(response).hasSize(PROCESS_INSTANCE_COUNT);
-      assertThat(response.getFirst().getName()).isEqualTo("task1");
-      assertThat(response.getFirst().getTaskState()).isEqualTo(TaskState.CREATED);
-      assertThat(countEntitiesFor(DraftTaskVariableTemplate.INDEX_NAME))
-          .isEqualTo(ALL_DRAFT_TASK_VARIABLES_COUNT);
-    } catch (final AssertionError er) {
-      LOGGER.warn("Error when asserting data: " + er.getMessage());
-      throw er;
-    }
+    await()
+        .atMost(Duration.ofSeconds(30))
+        .pollDelay(Duration.ofMillis(500))
+        .untilAsserted(
+            () -> {
+              final var response = tasklistAPICaller.getAllTasks();
+              assertThat(response).hasSize(PROCESS_INSTANCE_COUNT);
+              assertThat(response.getFirst().getName()).isEqualTo("task1");
+              assertThat(response.getFirst().getTaskState()).isEqualTo(TaskState.CREATED);
+              assertThat(countEntitiesFor(DraftTaskVariableTemplate.INDEX_NAME))
+                  .isEqualTo(ALL_DRAFT_TASK_VARIABLES_COUNT);
+            });
   }
 
   @Override
   public void assertDataAfterChange() throws IOException {
-    try {
-      var tasks = tasklistAPICaller.getTasks("task1");
-      assertThat(tasks).hasSize(PROCESS_INSTANCE_COUNT);
-      assertThat(tasks)
-          .filteredOn(t -> t.getTaskState().equals(TaskState.COMPLETED))
-          .hasSize(COMPLETED_TASKS_COUNT);
-      assertThat(tasks)
-          .filteredOn(t -> t.getTaskState().equals(TaskState.CREATED))
-          .hasSize(PROCESS_INSTANCE_COUNT - COMPLETED_TASKS_COUNT);
+    await()
+        .atMost(Duration.ofSeconds(30))
+        .pollDelay(Duration.ofMillis(500))
+        .untilAsserted(
+            () -> {
+              var tasks = tasklistAPICaller.getTasks("task1");
+              assertThat(tasks).hasSize(PROCESS_INSTANCE_COUNT);
+              assertThat(tasks)
+                  .filteredOn(t -> t.getTaskState().equals(TaskState.COMPLETED))
+                  .hasSize(COMPLETED_TASKS_COUNT);
+              assertThat(tasks)
+                  .filteredOn(t -> t.getTaskState().equals(TaskState.CREATED))
+                  .hasSize(PROCESS_INSTANCE_COUNT - COMPLETED_TASKS_COUNT);
 
-      tasks = tasklistAPICaller.getTasks("task2");
-      assertThat(tasks).hasSize(PROCESS_INSTANCE_COUNT);
-      assertThat(tasks).extracting("taskState").containsOnly(TaskState.CREATED);
+              tasks = tasklistAPICaller.getTasks("task2");
+              assertThat(tasks).hasSize(PROCESS_INSTANCE_COUNT);
+              assertThat(tasks).extracting("taskState").containsOnly(TaskState.CREATED);
 
-      // after task completion all draft variables associated with a task will be deleted
-      assertThat(countEntitiesFor(DraftTaskVariableTemplate.INDEX_NAME))
-          .isEqualTo(DRAFT_TASK_VARIABLES_COUNT_AFTER_TASKS_COMPLETION);
-    } catch (final AssertionError er) {
-      LOGGER.warn("Error when asserting data: " + er.getMessage());
-      throw er;
-    }
+              // after task completion all draft variables associated with a task will be deleted
+              assertThat(countEntitiesFor(DraftTaskVariableTemplate.INDEX_NAME))
+                  .isEqualTo(DRAFT_TASK_VARIABLES_COUNT_AFTER_TASKS_COMPLETION);
+            });
   }
 
   @Override
@@ -183,16 +186,15 @@ public abstract class AbstractBackupRestoreDataGenerator implements BackupRestor
 
   private void waitUntilAllDataAreImported() throws IOException {
     LOGGER.info("Wait till data is imported.");
-    long loadedProcessInstances = 0;
+    int loadedUserTasks = 0;
     int count = 0;
     final int maxWait = 101;
-    while (PROCESS_INSTANCE_COUNT > loadedProcessInstances && count < maxWait) {
+    while (PROCESS_INSTANCE_COUNT > loadedUserTasks && count < maxWait) {
       count++;
-      loadedProcessInstances = countEntitiesFor(TaskTemplate.INDEX_NAME);
+      loadedUserTasks = tasklistAPICaller.getAllTasks().size();
       LOGGER.info(
-          "Imported '{}' process instances of '{}'",
-          loadedProcessInstances,
-          PROCESS_INSTANCE_COUNT);
+          "Imported '{}' process instances of '{}'", loadedUserTasks, PROCESS_INSTANCE_COUNT);
+      assertThat(loadedUserTasks).isLessThanOrEqualTo(PROCESS_INSTANCE_COUNT);
       ThreadUtil.sleepFor(1000L);
     }
     if (count == maxWait) {
