@@ -22,28 +22,33 @@ import java.util.List;
 
 public final class AdHocSubProcessInstructionRecord extends UnifiedRecordValue
     implements AdHocSubProcessInstructionRecordValue {
-  public static final StringValue AD_HOC_SUB_PROCESS_INSTANCE_KEY =
+  private static final StringValue AD_HOC_SUB_PROCESS_INSTANCE_KEY =
       new StringValue("adHocSubProcessInstanceKey");
-  public static final StringValue ACTIVATE_ELEMENTS = new StringValue("activateElements");
-  public static final StringValue IS_CANCEL_REMAINING_INSTANCES =
-      new StringValue("isCancelRemainingInstances");
-  public static final StringValue TENANT_ID = new StringValue("tenantId");
+  private static final StringValue ACTIVATE_ELEMENTS = new StringValue("activateElements");
+  private static final StringValue CANCEL_REMAINING_INSTANCES =
+      new StringValue("cancelRemainingInstances");
+  private static final StringValue TENANT_ID = new StringValue("tenantId");
+  private static final StringValue COMPLETION_CONDITION_FULFILLED =
+      new StringValue("completionConditionFulfilled");
 
   private final LongProperty adHocSubProcessInstanceKey =
       new LongProperty(AD_HOC_SUB_PROCESS_INSTANCE_KEY, -1L);
   private final ArrayProperty<AdHocSubProcessActivateElementInstruction> activateElements =
       new ArrayProperty<>(ACTIVATE_ELEMENTS, AdHocSubProcessActivateElementInstruction::new);
   private final BooleanProperty cancelRemainingInstances =
-      new BooleanProperty(IS_CANCEL_REMAINING_INSTANCES, false);
+      new BooleanProperty(CANCEL_REMAINING_INSTANCES, false);
   private final StringProperty tenantId =
       new StringProperty(TENANT_ID, TenantOwned.DEFAULT_TENANT_IDENTIFIER);
+  private final BooleanProperty completionConditionFulfilledProp =
+      new BooleanProperty(COMPLETION_CONDITION_FULFILLED, false);
 
   public AdHocSubProcessInstructionRecord() {
-    super(4);
+    super(5);
     declareProperty(adHocSubProcessInstanceKey)
         .declareProperty(activateElements)
         .declareProperty(cancelRemainingInstances)
-        .declareProperty(tenantId);
+        .declareProperty(tenantId)
+        .declareProperty(completionConditionFulfilledProp);
   }
 
   @Override
@@ -69,7 +74,17 @@ public final class AdHocSubProcessInstructionRecord extends UnifiedRecordValue
     return cancelRemainingInstances.getValue();
   }
 
-  public AdHocSubProcessInstructionRecord cancelRemainingInstances(
+  @Override
+  public boolean isCompletionConditionFulfilled() {
+    return completionConditionFulfilledProp.getValue();
+  }
+
+  public AdHocSubProcessInstructionRecord setCompletionConditionFulfilled(final boolean fulfilled) {
+    completionConditionFulfilledProp.setValue(fulfilled);
+    return this;
+  }
+
+  public AdHocSubProcessInstructionRecord setCancelRemainingInstances(
       final boolean cancelRemainingInstances) {
     this.cancelRemainingInstances.setValue(cancelRemainingInstances);
     return this;

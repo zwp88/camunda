@@ -70,8 +70,6 @@ public class ElasticsearchExporter implements Exporter {
     pluginRepository.load(configuration.getInterceptorPlugins());
 
     context.setFilter(new ElasticsearchRecordFilter(configuration));
-    // Re-create the schema manager on every configuration change
-    schemaManager = new ElasticsearchExporterSchemaManager(client, configuration);
     registry = context.getMeterRegistry();
   }
 
@@ -172,6 +170,13 @@ public class ElasticsearchExporter implements Exporter {
       throw new ExporterException(
           String.format(
               "Elasticsearch numberOfReplicas must be >= 0. Current value: %d", numberOfReplicas));
+    }
+
+    final int priority = configuration.index.getTemplatePriority();
+    if (priority < 0) {
+      throw new ExporterException(
+          "Elasticsearch index template priority must be >= 0. Current value: %d"
+              .formatted(priority));
     }
 
     final String minimumAge = configuration.retention.getMinimumAge();

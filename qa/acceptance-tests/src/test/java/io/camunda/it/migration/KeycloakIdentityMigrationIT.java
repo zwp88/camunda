@@ -24,8 +24,6 @@ import io.camunda.client.api.search.enums.OwnerType;
 import io.camunda.client.api.search.enums.PermissionType;
 import io.camunda.client.api.search.enums.ResourceType;
 import io.camunda.client.api.search.response.Authorization;
-import io.camunda.client.api.search.response.Group;
-import io.camunda.client.api.search.response.GroupUser;
 import io.camunda.client.api.search.response.Role;
 import io.camunda.client.api.search.response.RoleUser;
 import io.camunda.client.api.search.response.Tenant;
@@ -243,7 +241,11 @@ public class KeycloakIdentityMigrationIT {
             a -> new HashSet<>(a.getPermissionTypes()))
         .contains(
             tuple("operate", ResourceType.MESSAGE, Set.of(PermissionType.READ)),
-            tuple("operate", ResourceType.RESOURCE, Set.of(PermissionType.READ)),
+            tuple(
+                "operate",
+                ResourceType.RESOURCE,
+                Set.of(
+                    PermissionType.READ, PermissionType.DELETE_PROCESS, PermissionType.DELETE_DRD)),
             tuple(
                 "operate",
                 ResourceType.DECISION_DEFINITION,
@@ -252,11 +254,11 @@ public class KeycloakIdentityMigrationIT {
                     PermissionType.READ_DECISION_INSTANCE,
                     PermissionType.READ_DECISION_DEFINITION,
                     PermissionType.DELETE_DECISION_INSTANCE)),
-            tuple("operate", ResourceType.APPLICATION, Set.of(PermissionType.ACCESS)),
+            tuple("operate", ResourceType.COMPONENT, Set.of(PermissionType.ACCESS)),
             tuple(
                 "operate",
                 ResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.READ, PermissionType.UPDATE, PermissionType.DELETE)),
+                Set.of(PermissionType.READ)),
             tuple(
                 "operate",
                 ResourceType.PROCESS_DEFINITION,
@@ -295,17 +297,13 @@ public class KeycloakIdentityMigrationIT {
                     PermissionType.DELETE_RESOURCE)),
             tuple("zeebe", ResourceType.SYSTEM, Set.of(PermissionType.READ, PermissionType.UPDATE)),
             tuple(
-                "zeebe",
-                ResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.UPDATE, PermissionType.DELETE)),
-            tuple(
                 "tasklist",
                 ResourceType.PROCESS_DEFINITION,
                 Set.of(
                     PermissionType.READ_USER_TASK,
                     PermissionType.UPDATE_USER_TASK,
                     PermissionType.READ_PROCESS_DEFINITION)),
-            tuple("tasklist", ResourceType.APPLICATION, Set.of(PermissionType.ACCESS)),
+            tuple("tasklist", ResourceType.COMPONENT, Set.of(PermissionType.ACCESS)),
             tuple("tasklist", ResourceType.RESOURCE, Set.of(PermissionType.READ)),
             tuple("tasklist", ResourceType.RESOURCE, Set.of(PermissionType.READ)),
             tuple(
@@ -341,7 +339,7 @@ public class KeycloakIdentityMigrationIT {
                     PermissionType.DELETE,
                     PermissionType.CREATE)),
             tuple("identity", ResourceType.USER, Set.of(PermissionType.READ)),
-            tuple("identity", ResourceType.APPLICATION, Set.of(PermissionType.ACCESS)));
+            tuple("identity", ResourceType.COMPONENT, Set.of(PermissionType.ACCESS)));
   }
 
   @Test
@@ -354,11 +352,6 @@ public class KeycloakIdentityMigrationIT {
         .ignoreExceptions()
         .untilAsserted(
             () -> {
-              final var groups = client.newGroupsSearchRequest().send().join();
-              assertThat(groups.items())
-                  .extracting(Group::getGroupId)
-                  .contains("groupa", "groupb", "groupc");
-
               final var authorizations = client.newAuthorizationSearchRequest().send().join();
               assertThat(authorizations.items())
                   .extracting(Authorization::getOwnerId)
@@ -367,18 +360,6 @@ public class KeycloakIdentityMigrationIT {
 
     // then
     assertThat(migration.getExitCode()).isEqualTo(0);
-
-    final var groups = client.newGroupsSearchRequest().send().join();
-    assertThat(groups.items())
-        .extracting(Group::getGroupId, Group::getName)
-        .contains(tuple("groupa", "groupA"), tuple("groupb", "groupB"), tuple("groupc", "groupC"));
-
-    final var usersGroupA = client.newUsersByGroupSearchRequest("groupa").send().join();
-    assertThat(usersGroupA.items()).extracting(GroupUser::getUsername).containsExactly("user0");
-    final var usersGroupB = client.newUsersByGroupSearchRequest("groupb").send().join();
-    assertThat(usersGroupB.items()).extracting(GroupUser::getUsername).containsExactly("user0");
-    final var usersGroupC = client.newUsersByGroupSearchRequest("groupc").send().join();
-    assertThat(usersGroupC.items()).extracting(GroupUser::getUsername).containsExactly("user1");
 
     final var authorizations = client.newAuthorizationSearchRequest().send().join();
     assertThat(authorizations.items())
@@ -515,11 +496,6 @@ public class KeycloakIdentityMigrationIT {
             tuple(
                 "migration-app",
                 OwnerType.CLIENT,
-                ResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.DELETE, PermissionType.UPDATE)),
-            tuple(
-                "migration-app",
-                OwnerType.CLIENT,
                 ResourceType.PROCESS_DEFINITION,
                 Set.of(
                     PermissionType.UPDATE_PROCESS_INSTANCE,
@@ -541,7 +517,7 @@ public class KeycloakIdentityMigrationIT {
             tuple(
                 "migration-app",
                 OwnerType.CLIENT,
-                ResourceType.APPLICATION,
+                ResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 "migration-app",

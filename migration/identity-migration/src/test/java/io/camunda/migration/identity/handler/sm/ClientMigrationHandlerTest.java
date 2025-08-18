@@ -133,7 +133,7 @@ public class ClientMigrationHandlerTest {
                 "ClientOne",
                 AuthorizationOwnerType.CLIENT,
                 "operate",
-                AuthorizationResourceType.APPLICATION,
+                AuthorizationResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 "ClientOne",
@@ -146,7 +146,7 @@ public class ClientMigrationHandlerTest {
                 AuthorizationOwnerType.CLIENT,
                 "*",
                 AuthorizationResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.READ, PermissionType.UPDATE, PermissionType.DELETE)),
+                Set.of(PermissionType.READ)),
             tuple(
                 "ClientOne",
                 AuthorizationOwnerType.CLIENT,
@@ -203,7 +203,7 @@ public class ClientMigrationHandlerTest {
                 "ClientTwo",
                 AuthorizationOwnerType.CLIENT,
                 "operate",
-                AuthorizationResourceType.APPLICATION,
+                AuthorizationResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 "ClientTwo",
@@ -221,7 +221,7 @@ public class ClientMigrationHandlerTest {
                 "ClientTwo",
                 AuthorizationOwnerType.CLIENT,
                 "tasklist",
-                AuthorizationResourceType.APPLICATION,
+                AuthorizationResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)));
   }
 
@@ -246,7 +246,7 @@ public class ClientMigrationHandlerTest {
     // then
     verify(managementIdentityClient, times(1)).fetchClientPermissions(validClientId);
     // zeebe write results in 6 authorizations
-    verify(authorizationServices, times(6)).createAuthorization(any());
+    verify(authorizationServices, times(5)).createAuthorization(any());
   }
 
   @Test

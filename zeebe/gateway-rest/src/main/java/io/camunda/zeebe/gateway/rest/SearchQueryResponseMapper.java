@@ -8,6 +8,7 @@
 package io.camunda.zeebe.gateway.rest;
 
 import static io.camunda.zeebe.gateway.rest.ResponseMapper.formatDate;
+import static io.camunda.zeebe.protocol.record.value.AuthorizationScope.WILDCARD;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
 
@@ -134,7 +135,6 @@ import io.camunda.zeebe.gateway.protocol.rest.VariableResult;
 import io.camunda.zeebe.gateway.protocol.rest.VariableSearchQueryResult;
 import io.camunda.zeebe.gateway.protocol.rest.VariableSearchResult;
 import io.camunda.zeebe.gateway.rest.util.KeyUtil;
-import io.camunda.zeebe.protocol.record.value.AuthorizationResourceMatcher;
 import io.camunda.zeebe.protocol.record.value.PermissionType;
 import io.camunda.zeebe.util.collection.Tuple;
 import java.util.Collections;
@@ -625,6 +625,10 @@ public final class SearchQueryResponseMapper {
       final BatchOperationItemEntity entity) {
     return new BatchOperationItemResponse()
         .batchOperationKey(entity.batchOperationKey())
+        .operationType(
+            entity.operationType() != null
+                ? BatchOperationTypeEnum.fromValue(entity.operationType().name())
+                : null)
         .itemKey(entity.itemKey().toString())
         .processInstanceKey(entity.processInstanceKey().toString())
         .processedDate(formatDate(entity.processedDate()))
@@ -906,7 +910,7 @@ public final class SearchQueryResponseMapper {
         .displayName(camundaUser.displayName())
         .username(camundaUser.username())
         .email(camundaUser.email())
-        .authorizedApplications(camundaUser.authorizedApplications())
+        .authorizedComponents(camundaUser.authorizedComponents())
         .tenants(toTenants(camundaUser.tenants()))
         .groups(camundaUser.groups())
         .roles(camundaUser.roles())
@@ -1090,9 +1094,8 @@ public final class SearchQueryResponseMapper {
   }
 
   public static AuthorizationResult toAuthorization(final AuthorizationEntity authorization) {
-    // TODO: handle with WILDCARD constant
     final var resourceId =
-        (AuthorizationResourceMatcher.ANY.value() == authorization.resourceMatcher())
+        (WILDCARD.getMatcher().value() == authorization.resourceMatcher())
             ? "*"
             : authorization.resourceId();
     return new AuthorizationResult()

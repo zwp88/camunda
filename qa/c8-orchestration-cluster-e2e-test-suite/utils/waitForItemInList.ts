@@ -15,31 +15,39 @@ export const waitForItemInList = async (
     shouldBeVisible?: boolean;
     timeout?: number;
     emptyStateLocator?: Locator;
-    clickAuthorizationsPageTab?: () => Promise<void>;
+    onAfterReload?: () => Promise<void>;
   },
 ) => {
   const {
     shouldBeVisible = true,
     timeout = 10000,
     emptyStateLocator,
-    clickAuthorizationsPageTab,
+    onAfterReload,
   } = options || {};
 
   const poll = expect.poll(
     async () => {
       await page.reload();
 
-      if (clickAuthorizationsPageTab) {
-        await clickAuthorizationsPageTab();
+      if (onAfterReload) {
+        await onAfterReload();
       }
 
       if (emptyStateLocator) {
         await Promise.race([
-          page.getByRole('cell').filter({hasText: /.+/}).first().waitFor(),
+          page
+            .getByRole('cell')
+            .filter({hasText: /.+/, hasNot: page.locator('div')})
+            .first()
+            .waitFor(),
           emptyStateLocator?.waitFor(),
         ]);
       } else {
-        await page.getByRole('cell').filter({hasText: /.+/}).first().waitFor();
+        await page
+          .getByRole('cell')
+          .filter({hasText: /.+/, hasNot: page.locator('div')})
+          .first()
+          .waitFor();
       }
 
       return await item.isVisible();

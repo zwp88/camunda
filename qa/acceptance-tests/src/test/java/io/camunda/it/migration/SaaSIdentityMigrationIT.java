@@ -295,13 +295,13 @@ public class SaaSIdentityMigrationIT {
                 DEVELOPER_ROLE_ID,
                 OwnerType.ROLE,
                 "operate",
-                ResourceType.APPLICATION,
+                ResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 DEVELOPER_ROLE_ID,
                 OwnerType.ROLE,
                 "tasklist",
-                ResourceType.APPLICATION,
+                ResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 DEVELOPER_ROLE_ID,
@@ -315,6 +315,8 @@ public class SaaSIdentityMigrationIT {
                     PermissionType.UPDATE_PROCESS_INSTANCE,
                     PermissionType.UPDATE_USER_TASK,
                     PermissionType.CREATE_PROCESS_INSTANCE,
+                    PermissionType.CANCEL_PROCESS_INSTANCE,
+                    PermissionType.MODIFY_PROCESS_INSTANCE,
                     PermissionType.DELETE_PROCESS_INSTANCE)),
             tuple(
                 DEVELOPER_ROLE_ID,
@@ -331,7 +333,19 @@ public class SaaSIdentityMigrationIT {
                 OwnerType.ROLE,
                 "*",
                 ResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.READ, PermissionType.UPDATE, PermissionType.DELETE)),
+                Set.of(PermissionType.READ)),
+            tuple(
+                DEVELOPER_ROLE_ID,
+                OwnerType.ROLE,
+                "*",
+                ResourceType.RESOURCE,
+                Set.of(
+                    PermissionType.CREATE,
+                    PermissionType.DELETE_FORM,
+                    PermissionType.DELETE_PROCESS,
+                    PermissionType.DELETE_DRD,
+                    PermissionType.DELETE_RESOURCE,
+                    PermissionType.READ)),
             tuple(
                 DEVELOPER_ROLE_ID,
                 OwnerType.ROLE,
@@ -342,7 +356,7 @@ public class SaaSIdentityMigrationIT {
                 OPERATIONS_ENGINEER_ROLE_ID,
                 OwnerType.ROLE,
                 "operate",
-                ResourceType.APPLICATION,
+                ResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 OPERATIONS_ENGINEER_ROLE_ID,
@@ -370,7 +384,18 @@ public class SaaSIdentityMigrationIT {
                 OwnerType.ROLE,
                 "*",
                 ResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.READ, PermissionType.UPDATE, PermissionType.DELETE)),
+                Set.of(PermissionType.READ)),
+            tuple(
+                OPERATIONS_ENGINEER_ROLE_ID,
+                OwnerType.ROLE,
+                "*",
+                ResourceType.RESOURCE,
+                Set.of(
+                    PermissionType.READ,
+                    PermissionType.DELETE_RESOURCE,
+                    PermissionType.DELETE_PROCESS,
+                    PermissionType.DELETE_DRD,
+                    PermissionType.DELETE_FORM)),
             tuple(
                 OPERATIONS_ENGINEER_ROLE_ID,
                 OwnerType.ROLE,
@@ -381,7 +406,7 @@ public class SaaSIdentityMigrationIT {
                 TASK_USER_ROLE_ID,
                 OwnerType.ROLE,
                 "tasklist",
-                ResourceType.APPLICATION,
+                ResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 TASK_USER_ROLE_ID,
@@ -397,13 +422,13 @@ public class SaaSIdentityMigrationIT {
                 VISITOR_ROLE_ID,
                 OwnerType.ROLE,
                 "operate",
-                ResourceType.APPLICATION,
+                ResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 VISITOR_ROLE_ID,
                 OwnerType.ROLE,
                 "tasklist",
-                ResourceType.APPLICATION,
+                ResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 VISITOR_ROLE_ID,
@@ -532,7 +557,8 @@ public class SaaSIdentityMigrationIT {
                 "client123",
                 OwnerType.CLIENT,
                 ResourceType.SYSTEM,
-                Set.of(PermissionType.UPDATE, PermissionType.READ)),
+                Set.of(
+                    PermissionType.UPDATE, PermissionType.READ, PermissionType.READ_USAGE_METRIC)),
             tuple(
                 "client123",
                 OwnerType.CLIENT,
@@ -568,7 +594,7 @@ public class SaaSIdentityMigrationIT {
                 "client123",
                 OwnerType.CLIENT,
                 ResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.UPDATE, PermissionType.DELETE, PermissionType.READ)),
+                Set.of(PermissionType.READ)),
             tuple(
                 "client123",
                 OwnerType.CLIENT,

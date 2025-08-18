@@ -21,6 +21,7 @@ import io.camunda.exporter.rdbms.handlers.GroupExportHandler;
 import io.camunda.exporter.rdbms.handlers.IncidentExportHandler;
 import io.camunda.exporter.rdbms.handlers.JobExportHandler;
 import io.camunda.exporter.rdbms.handlers.MappingRuleExportHandler;
+import io.camunda.exporter.rdbms.handlers.MessageSubscriptionExportHandler;
 import io.camunda.exporter.rdbms.handlers.ProcessExportHandler;
 import io.camunda.exporter.rdbms.handlers.ProcessInstanceExportHandler;
 import io.camunda.exporter.rdbms.handlers.ProcessInstanceIncidentExportHandler;
@@ -180,6 +181,9 @@ public class RdbmsExporterWrapper implements Exporter {
         ValueType.USAGE_METRIC,
         new UsageMetricExportHandler(
             rdbmsWriter.getUsageMetricWriter(), rdbmsWriter.getUsageMetricTUWriter()));
+    builder.withHandler(
+        ValueType.PROCESS_MESSAGE_SUBSCRIPTION,
+        new MessageSubscriptionExportHandler(rdbmsWriter.getMessageSubscriptionWriter()));
   }
 
   private void createBatchOperationHandlers(
@@ -193,7 +197,10 @@ public class RdbmsExporterWrapper implements Exporter {
         new BatchOperationChunkExportHandler(rdbmsWriter.getBatchOperationWriter()));
     builder.withHandler(
         ValueType.BATCH_OPERATION_LIFECYCLE_MANAGEMENT,
-        new BatchOperationLifecycleManagementExportHandler(rdbmsWriter.getBatchOperationWriter()));
+        new BatchOperationLifecycleManagementExportHandler(
+            rdbmsWriter.getBatchOperationWriter(),
+            rdbmsWriter.getHistoryCleanupService(),
+            batchOperationCache));
 
     // Handlers per batch operation to track status
     builder.withHandler(

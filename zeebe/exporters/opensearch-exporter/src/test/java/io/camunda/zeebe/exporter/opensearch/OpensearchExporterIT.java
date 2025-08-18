@@ -35,16 +35,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import org.agrona.CloseHelper;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
@@ -63,7 +61,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * down, should be done elsewhere (e.g. {@link FaultToleranceIT}
  */
 @Testcontainers
-@TestInstance(Lifecycle.PER_CLASS)
 final class OpensearchExporterIT {
   @Container
   private static final OpensearchContainer<?> CONTAINER =
@@ -80,8 +77,8 @@ final class OpensearchExporterIT {
   private TestClient testClient;
   private ExporterTestContext exporterTestContext;
 
-  @BeforeAll
-  public void beforeAll() {
+  @BeforeEach
+  public void beforeEach() {
     config.url = CONTAINER.getHttpHostAddress();
     config.setIncludeEnabledRecords(true);
     config.index.setNumberOfShards(1);
@@ -102,17 +99,12 @@ final class OpensearchExporterIT {
     exporter.open(controller);
   }
 
-  @AfterAll
-  void afterAll() {
-    CloseHelper.quietCloseAll(testClient);
-  }
-
-  @BeforeEach
-  void cleanup() {
-    config.setIncludeEnabledRecords(true);
+  @AfterEach
+  void afterEach() {
     testClient.deleteIndices();
     testClient.deleteIndexTemplates();
-    configureExporter(true);
+    testClient.deleteComponentTemplates();
+    CloseHelper.quietCloseAll(testClient);
   }
 
   @ParameterizedTest(name = "{0}")
@@ -384,8 +376,13 @@ final class OpensearchExporterIT {
   }
 
   private void configureExporter(final boolean retentionEnabled) {
-    config.retention.setEnabled(retentionEnabled);
+    configureExporter(config -> config.retention.setEnabled(retentionEnabled));
+  }
+
+  private void configureExporter(final Consumer<OpensearchExporterConfiguration> configurator) {
+    configurator.accept(config);
     exporter.configure(exporterTestContext);
+    exporter.open(controller);
   }
 
   private <T extends RecordValue> Record<T> generateRecord(final ValueType valueType) {
@@ -614,6 +611,47 @@ final class OpensearchExporterIT {
               .aliases();
       assertThat(secondRecordIndexAliases.size()).isEqualTo(1);
       assertThat(secondRecordIndexName).contains("8.7.0");
+    }
+
+    @Test
+    void shouldSetIndexTemplatePriorityFromConfiguration() {
+      // given
+      final int priority = 100;
+      configureExporter(config -> config.index.setPriority(priority));
+      final var record = generateRecord(ValueType.JOB);
+
+      // when
+      export(record);
+
+      // then
+      final var template =
+          testClient.getIndexTemplate(ValueType.JOB, VersionUtil.getVersionLowerCase());
+      assertThat(template)
+          .as("should have created index template for value type %s", ValueType.JOB)
+          .isPresent()
+          .get()
+          .extracting(wrapper -> wrapper.template().priority())
+          .isEqualTo((long) priority);
+    }
+
+    @Test
+    void shouldSetIndexTemplateWithDefaultPriorityWhenNotSetInConfiguration() {
+      // given
+      configureExporter(config -> {});
+      final var record = generateRecord(ValueType.JOB);
+
+      // when
+      export(record);
+
+      // then
+      final var template =
+          testClient.getIndexTemplate(ValueType.JOB, VersionUtil.getVersionLowerCase());
+      assertThat(template)
+          .as("should have created index template for value type %s", ValueType.JOB)
+          .isPresent()
+          .get()
+          .extracting(wrapper -> wrapper.template().priority())
+          .isEqualTo(20L); // default priority is 20
     }
 
     private void assertHasISMPolicy(final Optional<IndexISMPolicyDto> indexSettings) {

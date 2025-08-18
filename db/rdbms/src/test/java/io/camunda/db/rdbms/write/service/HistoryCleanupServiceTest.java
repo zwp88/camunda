@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 
 import io.camunda.db.rdbms.write.RdbmsWriterConfig;
 import io.camunda.db.rdbms.write.RdbmsWriterMetrics;
+import io.camunda.search.entities.BatchOperationType;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -37,6 +38,8 @@ class HistoryCleanupServiceTest {
   private DecisionInstanceWriter decisionInstanceWriter;
   private JobWriter jobWriter;
   private SequenceFlowWriter sequenceFlowWriter;
+  private BatchOperationWriter batchOperationWriter;
+  private MessageSubscriptionWriter messageSubscriptionWriter;
 
   private HistoryCleanupService historyCleanupService;
 
@@ -51,6 +54,8 @@ class HistoryCleanupServiceTest {
     decisionInstanceWriter = mock(DecisionInstanceWriter.class);
     jobWriter = mock(JobWriter.class);
     sequenceFlowWriter = mock(SequenceFlowWriter.class);
+    batchOperationWriter = mock(BatchOperationWriter.class);
+    messageSubscriptionWriter = mock(MessageSubscriptionWriter.class);
 
     when(processInstanceWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(0);
     when(flowNodeInstanceWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(0);
@@ -60,11 +65,23 @@ class HistoryCleanupServiceTest {
     when(decisionInstanceWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(0);
     when(jobWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(0);
     when(sequenceFlowWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(0);
+    when(batchOperationWriter.cleanupItemHistory(any(), anyInt())).thenReturn(0);
+    when(batchOperationWriter.cleanupHistory(any(), anyInt())).thenReturn(0);
+    when(messageSubscriptionWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(0);
 
-    when(config.defaultHistoryTTL()).thenReturn(Duration.ofDays(30));
-    when(config.minHistoryCleanupInterval()).thenReturn(Duration.ofHours(1));
-    when(config.maxHistoryCleanupInterval()).thenReturn(Duration.ofDays(1));
-    when(config.historyCleanupBatchSize()).thenReturn(100);
+    final var historyConfig = mock(RdbmsWriterConfig.HistoryConfig.class);
+    when(config.history()).thenReturn(historyConfig);
+    when(historyConfig.defaultHistoryTTL()).thenReturn(Duration.ofDays(90));
+    when(historyConfig.batchOperationCancelProcessInstanceHistoryTTL())
+        .thenReturn(Duration.ofDays(2));
+    when(historyConfig.batchOperationMigrateProcessInstanceHistoryTTL())
+        .thenReturn(Duration.ofDays(3));
+    when(historyConfig.batchOperationModifyProcessInstanceHistoryTTL())
+        .thenReturn(Duration.ofDays(4));
+    when(historyConfig.batchOperationResolveIncidentHistoryTTL()).thenReturn(Duration.ofDays(5));
+    when(historyConfig.minHistoryCleanupInterval()).thenReturn(Duration.ofHours(1));
+    when(historyConfig.maxHistoryCleanupInterval()).thenReturn(Duration.ofDays(1));
+    when(historyConfig.historyCleanupBatchSize()).thenReturn(100);
 
     historyCleanupService =
         new HistoryCleanupService(
@@ -77,6 +94,8 @@ class HistoryCleanupServiceTest {
             decisionInstanceWriter,
             jobWriter,
             sequenceFlowWriter,
+            batchOperationWriter,
+            messageSubscriptionWriter,
             mock(RdbmsWriterMetrics.class, Mockito.RETURNS_DEEP_STUBS));
   }
 
@@ -91,6 +110,9 @@ class HistoryCleanupServiceTest {
     when(decisionInstanceWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(1);
     when(jobWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(1);
     when(sequenceFlowWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(1);
+    when(batchOperationWriter.cleanupItemHistory(any(), anyInt())).thenReturn(1);
+    when(batchOperationWriter.cleanupHistory(any(), anyInt())).thenReturn(1);
+    when(messageSubscriptionWriter.cleanupHistory(anyInt(), any(), anyInt())).thenReturn(1);
 
     // when
     final Duration nextCleanupInterval =
@@ -106,6 +128,9 @@ class HistoryCleanupServiceTest {
     verify(decisionInstanceWriter).cleanupHistory(PARTITION_ID, CLEANUP_DATE, 100);
     verify(jobWriter).cleanupHistory(PARTITION_ID, CLEANUP_DATE, 100);
     verify(sequenceFlowWriter).cleanupHistory(PARTITION_ID, CLEANUP_DATE, 100);
+    verify(batchOperationWriter).cleanupItemHistory(CLEANUP_DATE, 100);
+    verify(batchOperationWriter).cleanupHistory(CLEANUP_DATE, 100);
+    verify(messageSubscriptionWriter).cleanupHistory(PARTITION_ID, CLEANUP_DATE, 100);
   }
 
   @Test
@@ -120,7 +145,9 @@ class HistoryCleanupServiceTest {
             "variable", 0,
             "decisionInstance", 0,
             "job", 0,
-            "sequenceFlow", 0);
+            "sequenceFlow", 0,
+            "batchOperation", 0,
+            "messageSubscription", 0);
 
     // when
     final Duration nextDuration =
@@ -134,16 +161,18 @@ class HistoryCleanupServiceTest {
   @Test
   void testCalculateNewDurationWhenExceededBatchSize() {
     // given
-    final Map<String, Integer> numDeletedRecords =
-        Map.of(
-            "processInstance", 100,
-            "flowNodeInstance", 100,
-            "incident", 100,
-            "userTask", 100,
-            "variable", 100,
-            "decisionInstance", 100,
-            "job", 100,
-            "sequenceFlow", 100);
+    final Map<String, Integer> numDeletedRecords = new java.util.HashMap<>();
+    numDeletedRecords.put("processInstance", 100);
+    numDeletedRecords.put("flowNodeInstance", 100);
+    numDeletedRecords.put("incident", 100);
+    numDeletedRecords.put("userTask", 100);
+    numDeletedRecords.put("variable", 100);
+    numDeletedRecords.put("decisionInstance", 100);
+    numDeletedRecords.put("job", 100);
+    numDeletedRecords.put("sequenceFlow", 100);
+    numDeletedRecords.put("batchOperationItem", 100);
+    numDeletedRecords.put("batchOperation", 100);
+    numDeletedRecords.put("messageSubscription", 100);
 
     // when
     final Duration nextDuration =
@@ -166,7 +195,9 @@ class HistoryCleanupServiceTest {
             "variable", 50,
             "decisionInstance", 50,
             "job", 50,
-            "sequenceFlow", 50);
+            "sequenceFlow", 50,
+            "batchOperation", 50,
+            "messageSubscription", 50);
 
     // when
     final Duration nextDuration =
@@ -175,5 +206,26 @@ class HistoryCleanupServiceTest {
     // then
     assertThat(nextDuration)
         .isEqualTo(Duration.ofHours(4)); // assuming minCleanupInterval is 1 hour
+  }
+
+  @Test
+  void testResolveBatchOperationTTL() {
+    assertThat(
+            historyCleanupService.resolveBatchOperationTTL(
+                BatchOperationType.CANCEL_PROCESS_INSTANCE))
+        .isEqualTo(Duration.ofDays(2));
+    assertThat(
+            historyCleanupService.resolveBatchOperationTTL(
+                BatchOperationType.MIGRATE_PROCESS_INSTANCE))
+        .isEqualTo(Duration.ofDays(3));
+    assertThat(
+            historyCleanupService.resolveBatchOperationTTL(
+                BatchOperationType.MODIFY_PROCESS_INSTANCE))
+        .isEqualTo(Duration.ofDays(4));
+    assertThat(historyCleanupService.resolveBatchOperationTTL(BatchOperationType.RESOLVE_INCIDENT))
+        .isEqualTo(Duration.ofDays(5));
+
+    assertThat(historyCleanupService.resolveBatchOperationTTL(BatchOperationType.ADD_VARIABLE))
+        .isEqualTo(Duration.ofDays(90)); // default history TTL
   }
 }

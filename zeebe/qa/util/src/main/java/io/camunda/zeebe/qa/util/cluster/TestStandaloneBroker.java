@@ -7,7 +7,7 @@
  */
 package io.camunda.zeebe.qa.util.cluster;
 
-import static io.camunda.application.commons.utils.DatabaseTypeUtils.PROPERTY_CAMUNDA_DATABASE_TYPE;
+import static io.camunda.spring.utils.DatabaseTypeUtils.PROPERTY_CAMUNDA_DATABASE_TYPE;
 
 import io.atomix.cluster.MemberId;
 import io.camunda.application.Profile;
@@ -328,9 +328,11 @@ public final class TestStandaloneBroker extends TestSpringApplication<TestStanda
     withProperty("logging.level.io.camunda.db.rdbms", "DEBUG");
     withProperty("logging.level.org.mybatis", "DEBUG");
     withProperty("zeebe.broker.exporters.rdbms.args.flushInterval", "PT0S");
-    withProperty("zeebe.broker.exporters.rdbms.args.defaultHistoryTTL", "PT2S");
-    withProperty("zeebe.broker.exporters.rdbms.args.minHistoryCleanupInterval", "PT2S");
-    withProperty("zeebe.broker.exporters.rdbms.args.maxHistoryCleanupInterval", "PT5S");
+    withProperty("zeebe.broker.exporters.rdbms.args.history.defaultHistoryTTL", "PT2S");
+    withProperty(
+        "zeebe.broker.exporters.rdbms.args.history.defaultBatchOperationHistoryTTL", "PT2S");
+    withProperty("zeebe.broker.exporters.rdbms.args.history.minHistoryCleanupInterval", "PT2S");
+    withProperty("zeebe.broker.exporters.rdbms.args.history.maxHistoryCleanupInterval", "PT5S");
     withExporter("rdbms", cfg -> cfg.setClassName("-"));
     return this;
   }

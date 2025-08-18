@@ -186,7 +186,11 @@ public class OidcIdentityMigrationIT {
             a -> new HashSet<>(a.getPermissionTypes()))
         .contains(
             tuple("operate", ResourceType.MESSAGE, Set.of(PermissionType.READ)),
-            tuple("operate", ResourceType.RESOURCE, Set.of(PermissionType.READ)),
+            tuple(
+                "operate",
+                ResourceType.RESOURCE,
+                Set.of(
+                    PermissionType.READ, PermissionType.DELETE_PROCESS, PermissionType.DELETE_DRD)),
             tuple(
                 "operate",
                 ResourceType.DECISION_DEFINITION,
@@ -195,11 +199,11 @@ public class OidcIdentityMigrationIT {
                     PermissionType.READ_DECISION_INSTANCE,
                     PermissionType.READ_DECISION_DEFINITION,
                     PermissionType.DELETE_DECISION_INSTANCE)),
-            tuple("operate", ResourceType.APPLICATION, Set.of(PermissionType.ACCESS)),
+            tuple("operate", ResourceType.COMPONENT, Set.of(PermissionType.ACCESS)),
             tuple(
                 "operate",
                 ResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.READ, PermissionType.UPDATE, PermissionType.DELETE)),
+                Set.of(PermissionType.READ)),
             tuple(
                 "operate",
                 ResourceType.PROCESS_DEFINITION,
@@ -238,17 +242,13 @@ public class OidcIdentityMigrationIT {
                     PermissionType.DELETE_RESOURCE)),
             tuple("zeebe", ResourceType.SYSTEM, Set.of(PermissionType.READ, PermissionType.UPDATE)),
             tuple(
-                "zeebe",
-                ResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.UPDATE, PermissionType.DELETE)),
-            tuple(
                 "tasklist",
                 ResourceType.PROCESS_DEFINITION,
                 Set.of(
                     PermissionType.READ_USER_TASK,
                     PermissionType.UPDATE_USER_TASK,
                     PermissionType.READ_PROCESS_DEFINITION)),
-            tuple("tasklist", ResourceType.APPLICATION, Set.of(PermissionType.ACCESS)),
+            tuple("tasklist", ResourceType.COMPONENT, Set.of(PermissionType.ACCESS)),
             tuple("tasklist", ResourceType.RESOURCE, Set.of(PermissionType.READ)),
             tuple("tasklist", ResourceType.RESOURCE, Set.of(PermissionType.READ)),
             tuple(
@@ -284,7 +284,7 @@ public class OidcIdentityMigrationIT {
                     PermissionType.DELETE,
                     PermissionType.CREATE)),
             tuple("identity", ResourceType.USER, Set.of(PermissionType.READ)),
-            tuple("identity", ResourceType.APPLICATION, Set.of(PermissionType.ACCESS)));
+            tuple("identity", ResourceType.COMPONENT, Set.of(PermissionType.ACCESS)));
   }
 
   @Test

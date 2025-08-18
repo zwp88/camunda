@@ -18,6 +18,7 @@ package io.camunda.client;
 import io.camunda.client.api.ExperimentalApi;
 import io.camunda.client.api.command.ActivateAdHocSubProcessActivitiesCommandStep1;
 import io.camunda.client.api.command.AssignClientToGroupCommandStep1;
+import io.camunda.client.api.command.AssignClientToTenantCommandStep1;
 import io.camunda.client.api.command.AssignGroupToTenantCommandStep1;
 import io.camunda.client.api.command.AssignMappingRuleToGroupStep1;
 import io.camunda.client.api.command.AssignMappingRuleToTenantCommandStep1;
@@ -60,7 +61,6 @@ import io.camunda.client.api.command.EvaluateDecisionCommandStep1;
 import io.camunda.client.api.command.MigrateProcessInstanceCommandStep1;
 import io.camunda.client.api.command.ModifyProcessInstanceCommandStep1;
 import io.camunda.client.api.command.PublishMessageCommandStep1;
-import io.camunda.client.api.command.RemoveUserFromTenantCommandStep1;
 import io.camunda.client.api.command.ResolveIncidentCommandStep1;
 import io.camunda.client.api.command.ResumeBatchOperationStep1;
 import io.camunda.client.api.command.SetVariablesCommandStep1;
@@ -75,6 +75,7 @@ import io.camunda.client.api.command.UnassignRoleFromMappingRuleCommandStep1;
 import io.camunda.client.api.command.UnassignRoleFromTenantCommandStep1;
 import io.camunda.client.api.command.UnassignRoleFromUserCommandStep1;
 import io.camunda.client.api.command.UnassignUserFromGroupCommandStep1;
+import io.camunda.client.api.command.UnassignUserFromTenantCommandStep1;
 import io.camunda.client.api.command.UnassignUserTaskCommandStep1;
 import io.camunda.client.api.command.UpdateAuthorizationCommandStep1;
 import io.camunda.client.api.command.UpdateGroupCommandStep1;
@@ -2128,7 +2129,7 @@ public interface CamundaClient extends AutoCloseable, JobClient {
   AssignUserToTenantCommandStep1 newAssignUserToTenantCommand();
 
   /**
-   * Command to remove a user from a tenant.
+   * Command to unassign a user from a tenant.
    *
    * <p>Example usage:
    *
@@ -2140,12 +2141,12 @@ public interface CamundaClient extends AutoCloseable, JobClient {
    *   .send();
    * </pre>
    *
-   * <p>This command sends an HTTP DELETE request to remove the specified user from the given
+   * <p>This command sends an HTTP DELETE request to unassign the specified user from the given
    * tenant.
    *
-   * @return a builder for the remove user from tenant command
+   * @return a builder for the unassign user from tenant command
    */
-  RemoveUserFromTenantCommandStep1 newUnassignUserFromTenantCommand();
+  UnassignUserFromTenantCommandStep1 newUnassignUserFromTenantCommand();
 
   /**
    * Command to assign a group to a tenant.
@@ -2217,6 +2218,24 @@ public interface CamundaClient extends AutoCloseable, JobClient {
    * @return a builder for the unassign client from group command
    */
   UnassignClientFromGroupCommandStep1 newUnassignClientFromGroupCommand();
+
+  /**
+   * Command to assign a client to a tenant.
+   *
+   * <pre>
+   *
+   * camundaClient
+   *  .newAssignClientToTenantCommand()
+   *  .clientId("clientId")
+   *  .tenantId("tenantId")
+   *  .send();
+   * </pre>
+   *
+   * <p>This command is only sent via REST over HTTP, not via gRPC <br>
+   *
+   * @return a builder to configure and send the assign client to tenant command
+   */
+  AssignClientToTenantCommandStep1 newAssignClientToTenantCommand();
 
   /**
    * Command to create an authorization

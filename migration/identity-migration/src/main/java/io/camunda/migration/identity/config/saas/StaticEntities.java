@@ -42,14 +42,14 @@ public class StaticEntities {
               DEVELOPER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
               "operate",
-              AuthorizationResourceType.APPLICATION,
-              AuthorizationResourceType.APPLICATION.getSupportedPermissionTypes()),
+              AuthorizationResourceType.COMPONENT,
+              AuthorizationResourceType.COMPONENT.getSupportedPermissionTypes()),
           new CreateAuthorizationRequest(
               DEVELOPER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
               "tasklist",
-              AuthorizationResourceType.APPLICATION,
-              AuthorizationResourceType.APPLICATION.getSupportedPermissionTypes()),
+              AuthorizationResourceType.COMPONENT,
+              AuthorizationResourceType.COMPONENT.getSupportedPermissionTypes()),
           new CreateAuthorizationRequest(
               DEVELOPER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
@@ -73,6 +73,12 @@ public class StaticEntities {
               DEVELOPER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
               "*",
+              AuthorizationResourceType.RESOURCE,
+              AuthorizationResourceType.RESOURCE.getSupportedPermissionTypes()),
+          new CreateAuthorizationRequest(
+              DEVELOPER_ROLE_ID,
+              AuthorizationOwnerType.ROLE,
+              "*",
               AuthorizationResourceType.BATCH,
               Set.of(PermissionType.CREATE, PermissionType.READ, PermissionType.UPDATE)),
           // OPERATIONS ENGINEER
@@ -80,8 +86,8 @@ public class StaticEntities {
               OPERATIONS_ENGINEER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
               "operate",
-              AuthorizationResourceType.APPLICATION,
-              AuthorizationResourceType.APPLICATION.getSupportedPermissionTypes()),
+              AuthorizationResourceType.COMPONENT,
+              AuthorizationResourceType.COMPONENT.getSupportedPermissionTypes()),
           new CreateAuthorizationRequest(
               OPERATIONS_ENGINEER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
@@ -110,6 +116,17 @@ public class StaticEntities {
               OPERATIONS_ENGINEER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
               "*",
+              AuthorizationResourceType.RESOURCE,
+              Set.of(
+                  PermissionType.READ,
+                  PermissionType.DELETE_RESOURCE,
+                  PermissionType.DELETE_PROCESS,
+                  PermissionType.DELETE_DRD,
+                  PermissionType.DELETE_FORM)),
+          new CreateAuthorizationRequest(
+              OPERATIONS_ENGINEER_ROLE_ID,
+              AuthorizationOwnerType.ROLE,
+              "*",
               AuthorizationResourceType.BATCH,
               Set.of(PermissionType.CREATE, PermissionType.READ, PermissionType.UPDATE)),
           // TASK USER
@@ -117,8 +134,8 @@ public class StaticEntities {
               TASK_USER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
               "tasklist",
-              AuthorizationResourceType.APPLICATION,
-              AuthorizationResourceType.APPLICATION.getSupportedPermissionTypes()),
+              AuthorizationResourceType.COMPONENT,
+              AuthorizationResourceType.COMPONENT.getSupportedPermissionTypes()),
           new CreateAuthorizationRequest(
               TASK_USER_ROLE_ID,
               AuthorizationOwnerType.ROLE,
@@ -134,14 +151,14 @@ public class StaticEntities {
               VISITOR_ROLE_ID,
               AuthorizationOwnerType.ROLE,
               "operate",
-              AuthorizationResourceType.APPLICATION,
-              AuthorizationResourceType.APPLICATION.getSupportedPermissionTypes()),
+              AuthorizationResourceType.COMPONENT,
+              AuthorizationResourceType.COMPONENT.getSupportedPermissionTypes()),
           new CreateAuthorizationRequest(
               VISITOR_ROLE_ID,
               AuthorizationOwnerType.ROLE,
               "tasklist",
-              AuthorizationResourceType.APPLICATION,
-              AuthorizationResourceType.APPLICATION.getSupportedPermissionTypes()),
+              AuthorizationResourceType.COMPONENT,
+              AuthorizationResourceType.COMPONENT.getSupportedPermissionTypes()),
           new CreateAuthorizationRequest(
               VISITOR_ROLE_ID,
               AuthorizationOwnerType.ROLE,
@@ -212,13 +229,7 @@ public class StaticEntities {
             "*",
             AuthorizationResourceType.DECISION_DEFINITION,
             Set.of(
-                PermissionType.CREATE_DECISION_INSTANCE, PermissionType.DELETE_DECISION_INSTANCE)),
-        new CreateAuthorizationRequest(
-            clientId,
-            AuthorizationOwnerType.CLIENT,
-            "*",
-            AuthorizationResourceType.DECISION_REQUIREMENTS_DEFINITION,
-            Set.of(PermissionType.UPDATE, PermissionType.DELETE)));
+                PermissionType.CREATE_DECISION_INSTANCE, PermissionType.DELETE_DECISION_INSTANCE)));
   }
 
   public static List<CreateAuthorizationRequest> getOperateClientPermissions(
@@ -241,7 +252,7 @@ public class StaticEntities {
             AuthorizationOwnerType.CLIENT,
             "*",
             AuthorizationResourceType.RESOURCE,
-            Set.of(PermissionType.READ)),
+            Set.of(PermissionType.READ, PermissionType.DELETE_PROCESS, PermissionType.DELETE_DRD)),
         new CreateAuthorizationRequest(
             clientId,
             AuthorizationOwnerType.CLIENT,

@@ -7,7 +7,7 @@
  */
 package io.camunda.security.impl;
 
-import static io.camunda.zeebe.protocol.record.value.AuthorizationResourceType.APPLICATION;
+import static io.camunda.zeebe.protocol.record.value.AuthorizationResourceType.COMPONENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -16,6 +16,7 @@ import io.camunda.search.clients.reader.AuthorizationReader;
 import io.camunda.security.auth.Authorization;
 import io.camunda.security.auth.CamundaAuthentication;
 import io.camunda.security.auth.SecurityContext;
+import io.camunda.zeebe.protocol.record.value.AuthorizationScope;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -40,7 +41,7 @@ public class AuthorizationCheckerTest {
     when(securityContext.authorization()).thenReturn(authorization);
 
     // when
-    final var result = authorizationChecker.retrieveAuthorizedResourceIds(securityContext);
+    final var result = authorizationChecker.retrieveAuthorizedAuthorizationScopes(securityContext);
 
     // then
     assertThat(result).isEmpty();
@@ -53,7 +54,7 @@ public class AuthorizationCheckerTest {
 
     // when
     final var result =
-        authorizationChecker.collectPermissionTypes("foo", APPLICATION, authentication);
+        authorizationChecker.collectPermissionTypes("foo", COMPONENT, authentication);
 
     // then
     assertThat(result).isEmpty();
@@ -62,6 +63,7 @@ public class AuthorizationCheckerTest {
   @Test
   public void notAuthorizedWhenOwnerIdsIsEmpty() {
     // given
+    final var authScope = AuthorizationScope.id("foo");
     final var authentication = mock(CamundaAuthentication.class);
     final var authorization = mock(Authorization.class);
     final var securityContext = mock(SecurityContext.class);
@@ -69,7 +71,7 @@ public class AuthorizationCheckerTest {
     when(securityContext.authorization()).thenReturn(authorization);
 
     // when
-    final var result = authorizationChecker.isAuthorized("foo", securityContext);
+    final var result = authorizationChecker.isAuthorized(authScope, securityContext);
 
     // then
     assertThat(result).isFalse();

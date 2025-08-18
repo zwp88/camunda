@@ -122,10 +122,10 @@ public class OidcRoleMigrationHandlerTest {
         .isEqualTo("Description for Role with special chars");
 
     final var authorizationCaptor = ArgumentCaptor.forClass(CreateAuthorizationRequest.class);
-    verify(authorizationServices, Mockito.times(20))
+    verify(authorizationServices, Mockito.times(19))
         .createAuthorization(authorizationCaptor.capture());
     final var authorizationRequests = authorizationCaptor.getAllValues();
-    assertThat(authorizationRequests).hasSize(20);
+    assertThat(authorizationRequests).hasSize(19);
     assertThat(authorizationRequests)
         .extracting(
             CreateAuthorizationRequest::ownerId,
@@ -155,7 +155,7 @@ public class OidcRoleMigrationHandlerTest {
             tuple(
                 "role_1",
                 AuthorizationOwnerType.ROLE,
-                AuthorizationResourceType.APPLICATION,
+                AuthorizationResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 "role_1",
@@ -170,7 +170,8 @@ public class OidcRoleMigrationHandlerTest {
                 "role_1",
                 AuthorizationOwnerType.ROLE,
                 AuthorizationResourceType.RESOURCE,
-                Set.of(PermissionType.READ)),
+                Set.of(
+                    PermissionType.READ, PermissionType.DELETE_PROCESS, PermissionType.DELETE_DRD)),
             tuple(
                 "role_1",
                 AuthorizationOwnerType.ROLE,
@@ -188,7 +189,7 @@ public class OidcRoleMigrationHandlerTest {
             tuple(
                 "role_1",
                 AuthorizationOwnerType.ROLE,
-                AuthorizationResourceType.APPLICATION,
+                AuthorizationResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 "role_1",
@@ -212,7 +213,7 @@ public class OidcRoleMigrationHandlerTest {
                 "role_1",
                 AuthorizationOwnerType.ROLE,
                 AuthorizationResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.READ, PermissionType.UPDATE, PermissionType.DELETE)),
+                Set.of(PermissionType.READ)),
             tuple(
                 "role_1",
                 AuthorizationOwnerType.ROLE,
@@ -230,7 +231,7 @@ public class OidcRoleMigrationHandlerTest {
             tuple(
                 "role@name_with_special_chars",
                 AuthorizationOwnerType.ROLE,
-                AuthorizationResourceType.APPLICATION,
+                AuthorizationResourceType.COMPONENT,
                 Set.of(PermissionType.ACCESS)),
             tuple(
                 "role@name_with_special_chars",
@@ -239,11 +240,6 @@ public class OidcRoleMigrationHandlerTest {
                 Set.of(
                     PermissionType.CREATE_DECISION_INSTANCE,
                     PermissionType.DELETE_DECISION_INSTANCE)),
-            tuple(
-                "role@name_with_special_chars",
-                AuthorizationOwnerType.ROLE,
-                AuthorizationResourceType.DECISION_REQUIREMENTS_DEFINITION,
-                Set.of(PermissionType.UPDATE, PermissionType.DELETE)),
             tuple(
                 "role@name_with_special_chars",
                 AuthorizationOwnerType.ROLE,
@@ -321,7 +317,7 @@ public class OidcRoleMigrationHandlerTest {
 
     // then
     verify(managementIdentityClient, times(2)).fetchPermissions(any());
-    verify(authorizationServices, times(20)).createAuthorization(any());
+    verify(authorizationServices, times(19)).createAuthorization(any());
   }
 
   @Test
@@ -384,7 +380,210 @@ public class OidcRoleMigrationHandlerTest {
 
     // then
     verify(roleServices, Mockito.times(2)).createRole(any(CreateRoleRequest.class));
-    verify(authorizationServices, Mockito.times(21))
+    verify(authorizationServices, Mockito.times(20))
         .createAuthorization(any(CreateAuthorizationRequest.class));
+  }
+
+  @Test
+  public void shouldMigrateRolesAndAuthorizationsWithSameAudiences() {
+    // given
+    when(managementIdentityClient.fetchRoles())
+        .thenReturn(
+            List.of(
+                new Role("Role 1", "Description for Role 1"),
+                new Role(
+                    "Role@Name#With$Special%Chars", "Description for Role with special chars")));
+    when(roleServices.createRole(any()))
+        .thenReturn(CompletableFuture.completedFuture(new RoleRecord()));
+    when(managementIdentityClient.fetchPermissions(any()))
+        .thenReturn(
+            List.of(
+                new Permission("read", "same-audience"),
+                new Permission("read:users", "same-audience"),
+                new Permission("write", "same-audience"),
+                new Permission("read:*", "operate-api"),
+                new Permission("write:*", "operate-api")))
+        .thenReturn(
+            List.of(
+                new Permission("read:*", "tasklist-api"),
+                new Permission("write:*", "tasklist-api"),
+                new Permission("write:*", "same-audience")));
+    when(authorizationServices.createAuthorization(any()))
+        .thenReturn(CompletableFuture.completedFuture(new AuthorizationRecord()));
+
+    // when
+    final IdentityMigrationProperties identityMigrationProperties =
+        new IdentityMigrationProperties();
+    final var audience = identityMigrationProperties.getOidc().getAudience();
+    audience.setIdentity("same-audience");
+    audience.setZeebe("same-audience");
+    final var updatedMigrationHandler =
+        new RoleMigrationHandler(
+            CamundaAuthentication.none(),
+            managementIdentityClient,
+            roleServices,
+            authorizationServices,
+            identityMigrationProperties);
+    updatedMigrationHandler.migrate();
+
+    // then
+    final var roleCaptor = ArgumentCaptor.forClass(CreateRoleRequest.class);
+    verify(roleServices, Mockito.times(2)).createRole(roleCaptor.capture());
+    final var roleRequests = roleCaptor.getAllValues();
+    assertThat(roleRequests).hasSize(2);
+    assertThat(roleRequests.getFirst().roleId()).isEqualTo("role_1");
+    assertThat(roleRequests.getFirst().name()).isEqualTo("Role 1");
+    assertThat(roleRequests.getFirst().description()).isEqualTo("Description for Role 1");
+    assertThat(roleRequests.getLast().roleId()).isEqualTo("role@name_with_special_chars");
+    assertThat(roleRequests.getLast().name()).isEqualTo("Role@Name#With$Special%Chars");
+    assertThat(roleRequests.getLast().description())
+        .isEqualTo("Description for Role with special chars");
+
+    final var authorizationCaptor = ArgumentCaptor.forClass(CreateAuthorizationRequest.class);
+    verify(authorizationServices, Mockito.times(19))
+        .createAuthorization(authorizationCaptor.capture());
+    final var authorizationRequests = authorizationCaptor.getAllValues();
+    assertThat(authorizationRequests).hasSize(19);
+    assertThat(authorizationRequests)
+        .extracting(
+            CreateAuthorizationRequest::ownerId,
+            CreateAuthorizationRequest::ownerType,
+            CreateAuthorizationRequest::resourceType,
+            CreateAuthorizationRequest::permissionTypes)
+        .containsExactlyInAnyOrder(
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.DECISION_DEFINITION,
+                Set.of(
+                    PermissionType.CREATE_DECISION_INSTANCE,
+                    PermissionType.READ_DECISION_INSTANCE,
+                    PermissionType.READ_DECISION_DEFINITION,
+                    PermissionType.DELETE_DECISION_INSTANCE)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.USER,
+                Set.of(PermissionType.READ)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.BATCH,
+                Set.of(PermissionType.CREATE, PermissionType.READ, PermissionType.UPDATE)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.COMPONENT,
+                Set.of(PermissionType.ACCESS)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.ROLE,
+                Set.of(
+                    PermissionType.READ,
+                    PermissionType.UPDATE,
+                    PermissionType.DELETE,
+                    PermissionType.CREATE)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.RESOURCE,
+                Set.of(
+                    PermissionType.READ, PermissionType.DELETE_PROCESS, PermissionType.DELETE_DRD)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.MESSAGE,
+                Set.of(PermissionType.READ)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.PROCESS_DEFINITION,
+                Set.of(
+                    PermissionType.READ_PROCESS_DEFINITION,
+                    PermissionType.READ_PROCESS_INSTANCE,
+                    PermissionType.DELETE_PROCESS_INSTANCE,
+                    PermissionType.UPDATE_PROCESS_INSTANCE)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.COMPONENT,
+                Set.of(PermissionType.ACCESS)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.GROUP,
+                Set.of(
+                    PermissionType.READ,
+                    PermissionType.CREATE,
+                    PermissionType.UPDATE,
+                    PermissionType.DELETE)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.AUTHORIZATION,
+                Set.of(
+                    PermissionType.READ,
+                    PermissionType.CREATE,
+                    PermissionType.UPDATE,
+                    PermissionType.DELETE)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.DECISION_REQUIREMENTS_DEFINITION,
+                Set.of(PermissionType.READ)),
+            tuple(
+                "role_1",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.TENANT,
+                Set.of(
+                    PermissionType.READ,
+                    PermissionType.CREATE,
+                    PermissionType.UPDATE,
+                    PermissionType.DELETE)),
+            tuple(
+                "role@name_with_special_chars",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.SYSTEM,
+                Set.of(PermissionType.READ, PermissionType.UPDATE)),
+            tuple(
+                "role@name_with_special_chars",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.COMPONENT,
+                Set.of(PermissionType.ACCESS)),
+            tuple(
+                "role@name_with_special_chars",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.DECISION_DEFINITION,
+                Set.of(
+                    PermissionType.CREATE_DECISION_INSTANCE,
+                    PermissionType.DELETE_DECISION_INSTANCE)),
+            tuple(
+                "role@name_with_special_chars",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.MESSAGE,
+                Set.of(PermissionType.CREATE)),
+            tuple(
+                "role@name_with_special_chars",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.RESOURCE,
+                Set.of(
+                    PermissionType.READ,
+                    PermissionType.CREATE,
+                    PermissionType.DELETE_FORM,
+                    PermissionType.DELETE_PROCESS,
+                    PermissionType.DELETE_DRD,
+                    PermissionType.DELETE_RESOURCE)),
+            tuple(
+                "role@name_with_special_chars",
+                AuthorizationOwnerType.ROLE,
+                AuthorizationResourceType.PROCESS_DEFINITION,
+                Set.of(
+                    PermissionType.READ_PROCESS_DEFINITION,
+                    PermissionType.READ_USER_TASK,
+                    PermissionType.UPDATE_PROCESS_INSTANCE,
+                    PermissionType.UPDATE_USER_TASK,
+                    PermissionType.CREATE_PROCESS_INSTANCE,
+                    PermissionType.DELETE_PROCESS_INSTANCE)));
   }
 }

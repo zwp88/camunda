@@ -9,10 +9,12 @@ package io.camunda.db.rdbms.write;
 
 import io.camunda.db.rdbms.config.VendorDatabaseProperties;
 import io.camunda.db.rdbms.read.service.BatchOperationDbReader;
+import io.camunda.db.rdbms.sql.BatchOperationMapper;
 import io.camunda.db.rdbms.sql.DecisionInstanceMapper;
 import io.camunda.db.rdbms.sql.FlowNodeInstanceMapper;
 import io.camunda.db.rdbms.sql.IncidentMapper;
 import io.camunda.db.rdbms.sql.JobMapper;
+import io.camunda.db.rdbms.sql.MessageSubscriptionMapper;
 import io.camunda.db.rdbms.sql.ProcessInstanceMapper;
 import io.camunda.db.rdbms.sql.PurgeMapper;
 import io.camunda.db.rdbms.sql.SequenceFlowMapper;
@@ -34,6 +36,7 @@ import io.camunda.db.rdbms.write.service.HistoryCleanupService;
 import io.camunda.db.rdbms.write.service.IncidentWriter;
 import io.camunda.db.rdbms.write.service.JobWriter;
 import io.camunda.db.rdbms.write.service.MappingRuleWriter;
+import io.camunda.db.rdbms.write.service.MessageSubscriptionWriter;
 import io.camunda.db.rdbms.write.service.ProcessDefinitionWriter;
 import io.camunda.db.rdbms.write.service.ProcessInstanceWriter;
 import io.camunda.db.rdbms.write.service.RdbmsPurger;
@@ -72,6 +75,7 @@ public class RdbmsWriter {
   private final SequenceFlowWriter sequenceFlowWriter;
   private final UsageMetricWriter usageMetricWriter;
   private final UsageMetricTUWriter usageMetricTUWriter;
+  private final MessageSubscriptionWriter messageSubscriptionWriter;
 
   private final HistoryCleanupService historyCleanupService;
 
@@ -92,7 +96,9 @@ public class RdbmsWriter {
       final JobMapper jobMapper,
       final SequenceFlowMapper sequenceFlowMapper,
       final UsageMetricMapper usageMetricMapper,
-      final UsageMetricTUMapper usageMetricTUMapper) {
+      final UsageMetricTUMapper usageMetricTUMapper,
+      final BatchOperationMapper batchOperationMapper,
+      final MessageSubscriptionMapper messageSubscriptionMapper) {
     this.executionQueue = executionQueue;
     this.exporterPositionService = exporterPositionService;
     rdbmsPurger = new RdbmsPurger(purgeMapper, vendorDatabaseProperties);
@@ -116,11 +122,17 @@ public class RdbmsWriter {
     mappingRuleWriter = new MappingRuleWriter(executionQueue);
     batchOperationWriter =
         new BatchOperationWriter(
-            batchOperationReader, executionQueue, config, vendorDatabaseProperties);
+            batchOperationReader,
+            executionQueue,
+            batchOperationMapper,
+            config,
+            vendorDatabaseProperties);
     jobWriter = new JobWriter(executionQueue, jobMapper, vendorDatabaseProperties);
     sequenceFlowWriter = new SequenceFlowWriter(executionQueue, sequenceFlowMapper);
     usageMetricWriter = new UsageMetricWriter(executionQueue, usageMetricMapper);
     usageMetricTUWriter = new UsageMetricTUWriter(executionQueue, usageMetricTUMapper);
+    messageSubscriptionWriter =
+        new MessageSubscriptionWriter(executionQueue, messageSubscriptionMapper);
 
     historyCleanupService =
         new HistoryCleanupService(
@@ -133,6 +145,8 @@ public class RdbmsWriter {
             decisionInstanceWriter,
             jobWriter,
             sequenceFlowWriter,
+            batchOperationWriter,
+            messageSubscriptionWriter,
             metrics);
   }
 
@@ -218,6 +232,10 @@ public class RdbmsWriter {
 
   public UsageMetricTUWriter getUsageMetricTUWriter() {
     return usageMetricTUWriter;
+  }
+
+  public MessageSubscriptionWriter getMessageSubscriptionWriter() {
+    return messageSubscriptionWriter;
   }
 
   public ExporterPositionService getExporterPositionService() {

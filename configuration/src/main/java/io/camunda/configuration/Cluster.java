@@ -11,7 +11,8 @@ import java.util.Set;
 
 public class Cluster {
 
-  private static final String PREFIX = "camunda.cluster.";
+  private static final String PREFIX = "camunda.cluster";
+
   private static final String LEGACY_NODEID_PROPERTY = "zeebe.broker.cluster.nodeId";
   private static final String LEGACY_PARTITION_COUNT_PROPERTY =
       "zeebe.broker.cluster.partitionsCount";
@@ -21,6 +22,9 @@ public class Cluster {
 
   /** Configuration for the distributed metadata manager in the cluster. */
   private Metadata metadata = new Metadata();
+
+  /** Network configuration for cluster communication. */
+  private Network network = new Network();
 
   /**
    * Specifies the unique id of this broker node in a cluster. The id should be between 0 and number
@@ -40,6 +44,9 @@ public class Cluster {
   /** The number of nodes in the cluster. */
   private int size = 1;
 
+  /** Configuration for the Raft protocol in the cluster. */
+  private Raft raft = new Raft();
+
   public Metadata getMetadata() {
     return metadata;
   }
@@ -48,9 +55,17 @@ public class Cluster {
     this.metadata = metadata;
   }
 
+  public Network getNetwork() {
+    return network;
+  }
+
+  public void setNetwork(final Network network) {
+    this.network = network;
+  }
+
   public int getNodeId() {
     return UnifiedConfigurationHelper.validateLegacyConfiguration(
-        PREFIX + "node-id",
+        PREFIX + ".node-id",
         nodeId,
         Integer.class,
         UnifiedConfigurationHelper.BackwardsCompatibilityMode.SUPPORTED,
@@ -63,7 +78,7 @@ public class Cluster {
 
   public int getPartitionCount() {
     return UnifiedConfigurationHelper.validateLegacyConfiguration(
-        PREFIX + "partition-count",
+        PREFIX + ".partition-count",
         partitionCount,
         Integer.class,
         UnifiedConfigurationHelper.BackwardsCompatibilityMode.SUPPORTED,
@@ -76,7 +91,7 @@ public class Cluster {
 
   public int getReplicationFactor() {
     return UnifiedConfigurationHelper.validateLegacyConfiguration(
-        PREFIX + "replication-factor",
+        PREFIX + ".replication-factor",
         replicationFactor,
         Integer.class,
         UnifiedConfigurationHelper.BackwardsCompatibilityMode.SUPPORTED,
@@ -89,7 +104,7 @@ public class Cluster {
 
   public int getSize() {
     return UnifiedConfigurationHelper.validateLegacyConfiguration(
-        PREFIX + "size",
+        PREFIX + ".size",
         size,
         Integer.class,
         UnifiedConfigurationHelper.BackwardsCompatibilityMode.SUPPORTED,
@@ -98,5 +113,13 @@ public class Cluster {
 
   public void setSize(final int size) {
     this.size = size;
+  }
+
+  public Raft getRaft() {
+    return raft;
+  }
+
+  public void setRaft(final Raft raft) {
+    this.raft = raft;
   }
 }

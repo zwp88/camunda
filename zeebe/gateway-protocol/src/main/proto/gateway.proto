@@ -57,6 +57,7 @@ message ActivatedJob {
     BPMN_ELEMENT = 0;
     EXECUTION_LISTENER = 1;
     TASK_LISTENER = 2;
+    AD_HOC_SUB_PROCESS = 3;
   }
 
   // Describes the listener event type of the job.
@@ -371,8 +372,10 @@ message EvaluateDecisionResponse {
   string failureMessage = 10;
   // the tenant identifier of the evaluated decision
   string tenantId = 11;
-  // the unique key identifying this decision evaluation
+  // deprecated, please refer to decisionEvaluationKey
   int64 decisionInstanceKey = 12;
+  // the unique key identifying this decision evaluation
+  int64 decisionEvaluationKey = 13;
 }
 
 message EvaluatedDecision {

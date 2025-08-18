@@ -17,8 +17,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.camunda.search.schema.config.IndexConfiguration;
 import io.camunda.search.schema.config.RetentionConfiguration;
@@ -318,22 +320,60 @@ public class SchemaManagerIT {
   }
 
   @TestTemplate
-  void shouldCreateLifeCyclePoliciesOnStartupIfEnabled(
+  void shouldCreateLifeCyclePoliciesWithDefaultValuesOnStartupIfEnabled(
       final SearchEngineConfiguration config, final SearchClientAdapter searchClientAdapter)
       throws IOException {
+    // given
     config.schemaManager().setCreateSchema(true);
     config.retention().setEnabled(true);
-    config.retention().setPolicyName("policy_name");
 
     final var schemaManager =
         new SchemaManager(
             searchEngineClientFromConfig(config), Set.of(), Set.of(), config, objectMapper);
-
+    // when
     schemaManager.startup();
 
-    final var policy = searchClientAdapter.getPolicyAsNode("policy_name");
+    // then: verify that all configured retention policies were created with default values
+    assertThat(searchClientAdapter.getPolicyAsNode("camunda-retention-policy"))
+        .asInstanceOf(type(JsonNode.class)) // switch from IterableAssert -> ObjectAssert<JsonNode>
+        .extracting(this::retentionMinAge)
+        .isEqualTo("30d");
 
-    assertThat(policy.get("policy")).isNotNull();
+    assertThat(searchClientAdapter.getPolicyAsNode("camunda-usage-metrics-retention-policy"))
+        .asInstanceOf(type(JsonNode.class))
+        .extracting(this::retentionMinAge)
+        .isEqualTo("730d");
+  }
+
+  @TestTemplate
+  void shouldCreateLifeCyclePoliciesWithCustomValuesOnStartupIfEnabled(
+      final SearchEngineConfiguration config, final SearchClientAdapter searchClientAdapter)
+      throws IOException {
+    // given
+    config.schemaManager().setCreateSchema(true);
+    final RetentionConfiguration retention = config.retention();
+    retention.setEnabled(true);
+    retention.setPolicyName("custom-retention-policy");
+    retention.setMinimumAge("88d");
+    retention.setUsageMetricsPolicyName("custom-metrics-retention-policy");
+    retention.setUsageMetricsMinimumAge("100d");
+
+    final var schemaManager =
+        new SchemaManager(
+            searchEngineClientFromConfig(config), Set.of(), Set.of(), config, objectMapper);
+    // when
+    schemaManager.startup();
+
+    // then: verify that all configured retention policies were created with custom values
+    assertThat(searchClientAdapter.getPolicyAsNode("custom-retention-policy"))
+        .asInstanceOf(type(JsonNode.class)) // switch from IterableAssert -> ObjectAssert<JsonNode>
+        .extracting(this::retentionMinAge)
+        .isEqualTo("88d");
+
+    assertThat(searchClientAdapter.getPolicyAsNode("custom-metrics-retention-policy"))
+        .asInstanceOf(type(JsonNode.class))
+        .extracting(this::retentionMinAge)
+        .isEqualTo("100d");
   }
 
   @TestTemplate
@@ -1020,5 +1060,191 @@ public class SchemaManagerIT {
     final var retrievedArchiveIndex2 = searchClientAdapter.getIndexAsNode(archiveIndexName2);
     assertThat(retrievedArchiveIndex2.at("/mappings/properties/foo/type").asText())
         .isEqualTo("keyword");
+  }
+
+  @TestTemplate
+  void shouldSetIndexTemplatePriorityWhenCreatingTemplate(
+      final SearchEngineConfiguration config, final SearchClientAdapter searchClientAdapter)
+      throws Exception {
+    // given
+    config.index().setTemplatePriority(100);
+
+    final var schemaManager =
+        new SchemaManager(
+            searchEngineClientFromConfig(config),
+            Set.of(),
+            Set.of(indexTemplate),
+            config,
+            objectMapper);
+
+    // when
+    schemaManager.startup();
+
+    // then
+    final var retrievedTemplate =
+        searchClientAdapter.getIndexTemplateAsNode(indexTemplate.getTemplateName());
+
+    assertThat(retrievedTemplate.at("/index_template/priority").asInt()).isEqualTo(100);
+  }
+
+  @TestTemplate
+  void shouldUseDefaultPriorityWhenTemplatePriorityNotSet(
+      final SearchEngineConfiguration config, final SearchClientAdapter searchClientAdapter)
+      throws Exception {
+    // given
+    // templatePriority is not set, should be null
+    assertThat(config.index().getTemplatePriority()).isNull();
+
+    final var schemaManager =
+        new SchemaManager(
+            searchEngineClientFromConfig(config),
+            Set.of(),
+            Set.of(indexTemplate),
+            config,
+            objectMapper);
+
+    // when
+    schemaManager.startup();
+
+    // then
+    final var retrievedTemplate =
+        searchClientAdapter.getIndexTemplateAsNode(indexTemplate.getTemplateName());
+
+    // When priority is not set, it should either be missing or null/0 depending on search engine
+    final var priorityNode = retrievedTemplate.at("/index_template/priority");
+    assertThat(priorityNode.isMissingNode()).isTrue();
+  }
+
+  @TestTemplate
+  void shouldUpdateIndexTemplatePriorityWhenSettingsChange(
+      final SearchEngineConfiguration config, final SearchClientAdapter searchClientAdapter)
+      throws Exception {
+    // given - create template with initial priority
+    config.index().setTemplatePriority(50);
+
+    final var schemaManager =
+        new SchemaManager(
+            searchEngineClientFromConfig(config),
+            Set.of(),
+            Set.of(indexTemplate),
+            config,
+            objectMapper);
+
+    schemaManager.startup();
+
+    // verify initial priority is set
+    var retrievedTemplate =
+        searchClientAdapter.getIndexTemplateAsNode(indexTemplate.getTemplateName());
+    assertThat(retrievedTemplate.at("/index_template/priority").asInt()).isEqualTo(50);
+
+    // when - update template settings with new priority via startup
+    config.index().setTemplatePriority(200);
+
+    schemaManager.startup();
+
+    // then - verify priority was updated
+    retrievedTemplate = searchClientAdapter.getIndexTemplateAsNode(indexTemplate.getTemplateName());
+    assertThat(retrievedTemplate.at("/index_template/priority").asInt()).isEqualTo(200);
+  }
+
+  @TestTemplate
+  void shoulUnsetIndexTemplatePriorityWhenSettingsIsRemoved(
+      final SearchEngineConfiguration config, final SearchClientAdapter searchClientAdapter)
+      throws Exception {
+    // given - create template with initial priority
+    config.index().setTemplatePriority(50);
+
+    final var schemaManager =
+        new SchemaManager(
+            searchEngineClientFromConfig(config),
+            Set.of(),
+            Set.of(indexTemplate),
+            config,
+            objectMapper);
+
+    schemaManager.startup();
+
+    // verify initial priority is set
+    var retrievedTemplate =
+        searchClientAdapter.getIndexTemplateAsNode(indexTemplate.getTemplateName());
+    assertThat(retrievedTemplate.at("/index_template/priority").asInt()).isEqualTo(50);
+
+    // when - unset template priority setting
+    config.index().setTemplatePriority(null);
+
+    schemaManager.startup();
+
+    // then - verify priority was updated
+    retrievedTemplate = searchClientAdapter.getIndexTemplateAsNode(indexTemplate.getTemplateName());
+    assertThat(retrievedTemplate.at("/index_template/priority").isMissingNode()).isTrue();
+  }
+
+  @TestTemplate
+  void shouldPreservePriorityWhenUpdatingTemplateMappings(
+      final SearchEngineConfiguration config, final SearchClientAdapter searchClientAdapter)
+      throws Exception {
+    // given - create template with priority
+    config.index().setTemplatePriority(150);
+
+    final var schemaManager =
+        new SchemaManager(
+            searchEngineClientFromConfig(config),
+            Set.of(),
+            Set.of(indexTemplate),
+            config,
+            objectMapper);
+
+    schemaManager.startup();
+
+    // verify initial priority is set
+    var retrievedTemplate =
+        searchClientAdapter.getIndexTemplateAsNode(indexTemplate.getTemplateName());
+    assertThat(retrievedTemplate.at("/index_template/priority").asInt()).isEqualTo(150);
+
+    // when - update template mappings
+    indexTemplate.setMappingsClasspathFilename("/mappings-added-property.json");
+    schemaManager.startup();
+
+    // then - priority should be preserved
+    retrievedTemplate = searchClientAdapter.getIndexTemplateAsNode(indexTemplate.getTemplateName());
+    assertThat(retrievedTemplate.at("/index_template/priority").asInt()).isEqualTo(150);
+
+    // and mapping should be updated
+    assertThat(
+            mappingsMatch(
+                retrievedTemplate.at("/index_template/template/mappings"),
+                "/mappings-added-property.json"))
+        .isTrue();
+  }
+
+  private String retentionMinAge(final JsonNode policyNode) {
+    // Check if this is an Elasticsearch policy (has "phases" structure)
+    final var phases = policyNode.at("/policy/phases");
+    if (!phases.isMissingNode()) {
+      // Elasticsearch structure:
+      // - policy.phases.delete.min_age
+      return phases.at("/delete/min_age").asText();
+    }
+
+    // OpenSearch structure:
+    // - policy.states[archived].transitions[to deleted].conditions.min_index_age
+    final JsonNode archivedState =
+        policyNode
+            .at("/policy/states")
+            .valueStream()
+            .filter(state -> "archived".equals(state.get("name").asText()))
+            .findFirst()
+            .orElseThrow(
+                () -> new IllegalStateException("Could not find 'archived' state in policy"));
+    final JsonNode deletedTransition =
+        archivedState
+            .get("transitions")
+            .valueStream()
+            .filter(transition -> "deleted".equals(transition.get("state_name").asText()))
+            .findFirst()
+            .orElseThrow(
+                () -> new IllegalStateException("Could not find transition to 'deleted' state"));
+
+    return deletedTransition.at("/conditions/min_index_age").asText();
   }
 }

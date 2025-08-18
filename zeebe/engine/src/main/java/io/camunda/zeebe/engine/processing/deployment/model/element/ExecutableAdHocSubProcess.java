@@ -14,6 +14,9 @@ import io.camunda.zeebe.model.bpmn.instance.zeebe.ZeebeAdHocImplementationType;
 import io.camunda.zeebe.util.buffer.BufferUtil;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import org.agrona.DirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 
 public class ExecutableAdHocSubProcess extends ExecutableFlowElementContainer
     implements ExecutableJobWorkerElement {
@@ -25,7 +28,11 @@ public class ExecutableAdHocSubProcess extends ExecutableFlowElementContainer
   private ZeebeAdHocImplementationType implementationType;
   private JobWorkerProperties jobWorkerProperties;
 
+  private Optional<DirectBuffer> outputCollection = Optional.empty();
+  private Optional<Expression> outputElement = Optional.empty();
+
   private final Map<String, ExecutableFlowNode> adHocActivitiesById = new HashMap<>();
+  private final DirectBuffer adHocActivitiesMetadata = new UnsafeBuffer();
 
   public ExecutableAdHocSubProcess(final String id) {
     super(id);
@@ -85,5 +92,29 @@ public class ExecutableAdHocSubProcess extends ExecutableFlowElementContainer
   @Override
   public void setJobWorkerProperties(final JobWorkerProperties jobWorkerProperties) {
     this.jobWorkerProperties = jobWorkerProperties;
+  }
+
+  public DirectBuffer getAdHocActivitiesMetadata() {
+    return adHocActivitiesMetadata;
+  }
+
+  public void setAdHocActivitiesMetadata(final DirectBuffer activitiesMetadata) {
+    adHocActivitiesMetadata.wrap(activitiesMetadata);
+  }
+
+  public Optional<DirectBuffer> getOutputCollection() {
+    return outputCollection;
+  }
+
+  public void setOutputCollection(final DirectBuffer outputCollection) {
+    this.outputCollection = Optional.of(outputCollection);
+  }
+
+  public Optional<Expression> getOutputElement() {
+    return outputElement;
+  }
+
+  public void setOutputElement(final Expression outputElement) {
+    this.outputElement = Optional.of(outputElement);
   }
 }

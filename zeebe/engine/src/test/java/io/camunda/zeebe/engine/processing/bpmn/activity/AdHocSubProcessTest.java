@@ -22,17 +22,21 @@ import io.camunda.zeebe.protocol.record.Record;
 import io.camunda.zeebe.protocol.record.RecordType;
 import io.camunda.zeebe.protocol.record.RecordValue;
 import io.camunda.zeebe.protocol.record.intent.DeploymentIntent;
+import io.camunda.zeebe.protocol.record.intent.IncidentIntent;
 import io.camunda.zeebe.protocol.record.intent.ProcessInstanceIntent;
 import io.camunda.zeebe.protocol.record.intent.SignalIntent;
+import io.camunda.zeebe.protocol.record.intent.VariableIntent;
 import io.camunda.zeebe.protocol.record.value.BpmnElementType;
 import io.camunda.zeebe.protocol.record.value.BpmnEventType;
 import io.camunda.zeebe.protocol.record.value.DeploymentRecordValue;
+import io.camunda.zeebe.protocol.record.value.ErrorType;
 import io.camunda.zeebe.protocol.record.value.ProcessInstanceRecordValue;
 import io.camunda.zeebe.protocol.record.value.VariableRecordValue;
 import io.camunda.zeebe.test.util.record.RecordingExporter;
 import io.camunda.zeebe.test.util.record.RecordingExporterTestWatcher;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -49,6 +53,7 @@ public final class AdHocSubProcessTest {
   private static final String AD_HOC_SUB_PROCESS_ELEMENT_ID = "ad-hoc";
   private static final String AHSP_INNER_INSTANCE_ELEMENT_ID =
       "ad-hoc" + AD_HOC_SUB_PROCESS_INNER_INSTANCE_ID_POSTFIX;
+  private static final String AD_HOC_SUB_PROCESS_ELEMENTS_VARIABLE = "adHocSubProcessElements";
 
   @Rule public final RecordingExporterTestWatcher watcher = new RecordingExporterTestWatcher();
 
@@ -596,7 +601,10 @@ public final class AdHocSubProcessTest {
             .getFirst();
 
     assertThat(
-            RecordingExporter.variableRecords().withProcessInstanceKey(processInstanceKey).limit(2))
+            RecordingExporter.variableRecords()
+                .withProcessInstanceKey(processInstanceKey)
+                .filter(v -> v.getValue().getName().equals("activateElements"))
+                .limit(2))
         .extracting(Record::getValue)
         .extracting(
             VariableRecordValue::getName,
@@ -646,12 +654,7 @@ public final class AdHocSubProcessTest {
 
     ENGINE.deployment().withXmlResource(process).deploy();
 
-    final long processInstanceKey =
-        ENGINE
-            .processInstance()
-            .ofBpmnProcessId(PROCESS_ID)
-            .withVariable("activateElements", List.of("A", "B"))
-            .create();
+    final long processInstanceKey = getProcessInstanceKeyForOutputCollectionTest();
 
     // when
     ENGINE.job().ofInstance(processInstanceKey).withType("A").complete();
@@ -668,6 +671,48 @@ public final class AdHocSubProcessTest {
             VariableRecordValue::getValue,
             VariableRecordValue::getScopeKey)
         .contains(tuple("adHocResult", "[1,2]", processInstanceKey));
+  }
+
+  @Test
+  public void shouldCreateLocalAdHocSubProcessElementsVariable() {
+    // given
+    final BpmnModelInstance process =
+        process(
+            adHocSubProcess -> {
+              adHocSubProcess.task("A");
+            });
+
+    // when
+    final long processInstanceKey =
+        ENGINE
+            .processInstance()
+            .ofBpmnProcessId(PROCESS_ID)
+            .withVariable("activateElements", List.of("A"))
+            .create();
+
+    final var adHocSubProcessKey =
+        RecordingExporter.processInstanceRecords(ProcessInstanceIntent.ELEMENT_ACTIVATED)
+            .withProcessInstanceKey(processInstanceKey)
+            .withElementId(AD_HOC_SUB_PROCESS_ELEMENT_ID)
+            .getFirst()
+            .getKey();
+
+    // then
+    // actual variable assertions are done in detail in AdHocSubProcessElementsVariableTest
+    assertThat(
+            RecordingExporter.variableRecords()
+                .withProcessInstanceKey(processInstanceKey)
+                .filter(
+                    v ->
+                        v.getIntent() == VariableIntent.CREATED
+                            && v.getValue().getName().equals(AD_HOC_SUB_PROCESS_ELEMENTS_VARIABLE))
+                .limit(1))
+        .first()
+        .describedAs(
+            "Variable adHocSubProcessElements should be created as local variable in sub-process scope")
+        .satisfies(
+            variableRecord ->
+                assertThat(variableRecord.getValue()).hasScopeKey(adHocSubProcessKey));
   }
 
   @Test
@@ -980,9 +1025,207 @@ public final class AdHocSubProcessTest {
             tuple(PROCESS_ID, BpmnElementType.PROCESS, ProcessInstanceIntent.ELEMENT_COMPLETED));
   }
 
+  @Test
+  public void shouldCreateOutputCollectionInAHSPScope() {
+    // given
+    createOutputCollectionProcessAndDeploy();
+
+    final long processInstanceKey = getProcessInstanceKeyForOutputCollectionTest();
+
+    // then
+    final var ahsp =
+        RecordingExporter.processInstanceRecords(ProcessInstanceIntent.ELEMENT_ACTIVATED)
+            .withProcessInstanceKey(processInstanceKey)
+            .withElementType(BpmnElementType.AD_HOC_SUB_PROCESS)
+            .getFirst();
+    Assertions.assertThat(
+            RecordingExporter.variableRecords(VariableIntent.CREATED)
+                .withProcessInstanceKey(processInstanceKey)
+                .withName("results")
+                .getFirst()
+                .getValue())
+        .describedAs("Should create output collection in scope of ad-hoc sub-process")
+        .hasName("results")
+        .hasValue("[]")
+        .hasScopeKey(ahsp.getKey());
+  }
+
+  @Test
+  public void shouldCreateOutputElementsInInnerInstanceScope() {
+    // given
+    createOutputCollectionProcessAndDeploy();
+
+    final long processInstanceKey = getProcessInstanceKeyForOutputCollectionTest();
+
+    // then
+    final var innerInstanceKeys = getInnerInstanceKeysForOutputCollectionTest(processInstanceKey);
+
+    assertThat(
+            RecordingExporter.variableRecords(VariableIntent.CREATED)
+                .withProcessInstanceKey(processInstanceKey)
+                .withName("result")
+                .limit(2))
+        .describedAs("Should create output elements in scope of inner instances")
+        .map(Record::getValue)
+        .extracting(
+            VariableRecordValue::getName,
+            VariableRecordValue::getValue,
+            VariableRecordValue::getScopeKey)
+        .containsExactlyInAnyOrder(
+            tuple("result", "null", innerInstanceKeys.get(0)),
+            tuple("result", "null", innerInstanceKeys.get(1)));
+  }
+
+  @Test
+  public void shouldUpdateOutputElementsInInnerInstanceScope() {
+    // given
+    createOutputCollectionProcessAndDeploy();
+
+    final long processInstanceKey = getProcessInstanceKeyForOutputCollectionTest();
+
+    final var innerInstanceKeys = getInnerInstanceKeysForOutputCollectionTest(processInstanceKey);
+
+    // when
+    ENGINE
+        .job()
+        .ofInstance(processInstanceKey)
+        .withType("A")
+        .withVariable("result", "a")
+        .complete();
+
+    ENGINE
+        .job()
+        .ofInstance(processInstanceKey)
+        .withType("B")
+        .withVariable("result", "b")
+        .complete();
+
+    // then
+    assertThat(
+            RecordingExporter.variableRecords(VariableIntent.UPDATED)
+                .withProcessInstanceKey(processInstanceKey)
+                .withName("result")
+                .limit(2))
+        .describedAs("Should update output elements in scope of inner instances")
+        .map(Record::getValue)
+        .extracting(
+            VariableRecordValue::getName,
+            VariableRecordValue::getValue,
+            VariableRecordValue::getScopeKey)
+        .containsExactlyInAnyOrder(
+            tuple("result", "\"a\"", innerInstanceKeys.get(0)),
+            tuple("result", "\"b\"", innerInstanceKeys.get(1)));
+  }
+
+  @Test
+  public void shouldAppendOutputCollection() {
+    // given
+    createOutputCollectionProcessAndDeploy();
+
+    final long processInstanceKey = getProcessInstanceKeyForOutputCollectionTest();
+
+    final var ahsp =
+        RecordingExporter.processInstanceRecords(ProcessInstanceIntent.ELEMENT_ACTIVATED)
+            .withProcessInstanceKey(processInstanceKey)
+            .withElementType(BpmnElementType.AD_HOC_SUB_PROCESS)
+            .getFirst();
+
+    // when
+    ENGINE
+        .job()
+        .ofInstance(processInstanceKey)
+        .withType("A")
+        .withVariable("result", "a")
+        .complete();
+
+    ENGINE
+        .job()
+        .ofInstance(processInstanceKey)
+        .withType("B")
+        .withVariable("result", "b")
+        .complete();
+
+    // then
+    assertThat(
+            RecordingExporter.variableRecords(VariableIntent.UPDATED)
+                .withProcessInstanceKey(processInstanceKey)
+                .withName("results")
+                .limit(2))
+        .describedAs("Should have updated the output collection twice")
+        .extracting(Record::getValue)
+        .extracting(
+            VariableRecordValue::getName,
+            VariableRecordValue::getValue,
+            VariableRecordValue::getScopeKey)
+        .containsSequence(
+            tuple("results", "[\"a\"]", ahsp.getKey()),
+            tuple("results", "[\"a\",\"b\"]", ahsp.getKey()));
+  }
+
+  @Test
+  public void shouldRaiseIncidentIfOutputCollectionIsNotAnArray() {
+    // given
+    createOutputCollectionProcessAndDeploy();
+    final long processInstanceKey = getProcessInstanceKeyForOutputCollectionTest();
+    final var ahsp =
+        RecordingExporter.processInstanceRecords(ProcessInstanceIntent.ELEMENT_ACTIVATED)
+            .withProcessInstanceKey(processInstanceKey)
+            .withElementType(BpmnElementType.AD_HOC_SUB_PROCESS)
+            .getFirst();
+
+    // when
+    final var variables = new HashMap<String, Object>();
+    variables.put("results", null);
+    ENGINE.variables().ofScope(ahsp.getKey()).withDocument(variables).update();
+    final var jobKey = ENGINE.jobs().withType("A").activate().getValue().getJobKeys().getFirst();
+    ENGINE.job().withKey(jobKey).complete();
+
+    // then
+    assertThat(
+            RecordingExporter.incidentRecords(IncidentIntent.CREATED)
+                .withProcessInstanceKey(processInstanceKey)
+                .getFirst()
+                .getValue())
+        .hasErrorType(ErrorType.EXTRACT_VALUE_ERROR)
+        .hasElementId(AHSP_INNER_INSTANCE_ELEMENT_ID)
+        .hasErrorMessage("The output collection has the wrong type. Expected ARRAY but was NIL.");
+  }
+
   private static Predicate<Record<RecordValue>> signalBroadcasted(final String signalName) {
     return r ->
         r.getIntent() == SignalIntent.BROADCASTED
             && ((SignalRecord) r.getValue()).getSignalName().equals(signalName);
+  }
+
+  private List<Long> getInnerInstanceKeysForOutputCollectionTest(final long processInstanceKey) {
+    return RecordingExporter.processInstanceRecords(ProcessInstanceIntent.ELEMENT_ACTIVATED)
+        .withProcessInstanceKey(processInstanceKey)
+        .withElementType(BpmnElementType.AD_HOC_SUB_PROCESS_INNER_INSTANCE)
+        .limit(2)
+        .map(Record::getKey)
+        .toList();
+  }
+
+  private long getProcessInstanceKeyForOutputCollectionTest() {
+    return ENGINE
+        .processInstance()
+        .ofBpmnProcessId(PROCESS_ID)
+        .withVariable("activateElements", List.of("A", "B"))
+        .create();
+  }
+
+  private void createOutputCollectionProcessAndDeploy() {
+    final var process =
+        process(
+            adHocSubProcess -> {
+              adHocSubProcess
+                  .zeebeActiveElementsCollectionExpression("activateElements")
+                  .zeebeOutputCollection("results")
+                  .zeebeOutputElementExpression("result");
+              adHocSubProcess.serviceTask("A", t -> t.zeebeJobType("A"));
+              adHocSubProcess.serviceTask("B", t -> t.zeebeJobType("B"));
+              adHocSubProcess.task("C");
+            });
+    ENGINE.deployment().withXmlResource(process).deploy();
   }
 }

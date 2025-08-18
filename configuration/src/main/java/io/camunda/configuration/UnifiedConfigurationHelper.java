@@ -7,6 +7,9 @@
  */
 package io.camunda.configuration;
 
+import io.camunda.configuration.Gcs.GcsBackupStoreAuth;
+import io.camunda.configuration.RocksDb.AccessMetricsKind;
+import java.io.File;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -16,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import org.springframework.util.unit.DataSize;
 
 @Component("unifiedConfigurationHelper")
 public class UnifiedConfigurationHelper {
@@ -66,6 +70,7 @@ public class UnifiedConfigurationHelper {
     for (final String legacyProperty : legacyProperties) {
       final String strValue = environment.getProperty(legacyProperty);
       final T legacyValue = parseLegacyValue(strValue, expectedType);
+
       legacyValues.add(legacyValue);
     }
 
@@ -212,6 +217,11 @@ public class UnifiedConfigurationHelper {
       case "Boolean" -> (T) Boolean.valueOf(strValue);
       case "Duration" -> (T) DurationStyle.detectAndParse(strValue);
       case "Long" -> (T) Long.valueOf(strValue);
+      case "DataSize" -> (T) DataSize.parse(strValue);
+      case "GcsBackupStoreAuth" -> (T) GcsBackupStoreAuth.valueOf(strValue.toUpperCase());
+      case "File" -> (T) new File(strValue);
+      case "SasTokenType" -> (T) SasToken.SasTokenType.valueOf(strValue.toUpperCase());
+      case "AccessMetricsKind" -> (T) AccessMetricsKind.valueOf(strValue.toUpperCase());
       default -> throw new IllegalArgumentException("Unsupported type: " + type);
     };
   }
