@@ -24,16 +24,18 @@ import {
 } from 'modules/stores/processInstances';
 import {processInstancesSelectionStore} from 'modules/stores/processInstancesSelection';
 import {processesStore} from 'modules/stores/processes/processes.list';
-import {notificationsStore} from 'modules/stores/notifications';
+
 import {batchModificationStore} from 'modules/stores/batchModification';
 
 import {getProcessName} from 'modules/utils/instance';
 import {Toolbar} from '../Toolbar';
+import {Toolbar as ToolbarV2} from '../Toolbar/v2';
 import {getProcessInstanceFilters} from 'modules/utils/filter/getProcessInstanceFilters';
 import {useLocation} from 'react-router-dom';
-import {Operations} from 'modules/components/Operations';
+import {InstanceOperations} from './InstanceOperations';
 import {BatchModificationFooter} from '../BatchModificationFooter';
 import {getProcessInstancesRequestFilters} from 'modules/utils/filter';
+import {IS_BATCH_OPERATIONS_V2} from 'modules/feature-flags';
 
 const ROW_HEIGHT = 34;
 
@@ -99,11 +101,20 @@ const InstancesTable: React.FC = observer(() => {
         count={filteredProcessInstancesCount}
       />
 
-      <Toolbar
-        selectedInstancesCount={
-          processInstancesSelectionStore.selectedProcessInstanceCount
-        }
-      />
+      {IS_BATCH_OPERATIONS_V2 ? (
+        <ToolbarV2
+          selectedInstancesCount={
+            processInstancesSelectionStore.selectedProcessInstanceCount
+          }
+        />
+      ) : (
+        <Toolbar
+          selectedInstancesCount={
+            processInstancesSelectionStore.selectedProcessInstanceCount
+          }
+        />
+      )}
+
       <SortableTable
         state={getTableState()}
         columnsWithNoContentPadding={['operations']}
@@ -217,44 +228,17 @@ const InstancesTable: React.FC = observer(() => {
               </>
             ),
             operations: (
-              <Operations
-                instance={instance}
-                onOperation={(operationType) =>
-                  processInstancesStore.markProcessInstancesWithActiveOperations(
-                    {
-                      ids: [instance.id],
-                      operationType,
-                    },
-                  )
-                }
-                onError={({operationType, statusCode}) => {
-                  processInstancesStore.unmarkProcessInstancesWithActiveOperations(
-                    {
-                      instanceIds: [instance.id],
-                      operationType,
-                    },
-                  );
-                  notificationsStore.displayNotification({
-                    kind: 'error',
-                    title: 'Operation could not be created',
-                    subtitle:
-                      statusCode === 403
-                        ? 'You do not have permission'
-                        : undefined,
-                    isDismissable: true,
-                  });
-                }}
-                onSuccess={(operationType) => {
-                  tracking.track({
-                    eventName: 'single-operation',
-                    operationType,
-                    source: 'instances-list',
-                  });
-                }}
-                permissions={processesStore.getPermissions(
-                  instance.bpmnProcessId,
-                  instance.tenantId,
+              <InstanceOperations
+                processInstanceKey={instance.id}
+                isInstanceActive={['ACTIVE', 'INCIDENT'].includes(
+                  instance.state,
                 )}
+                hasIncident={instance.state === 'INCIDENT'}
+                activeOperations={instance.operations
+                  ?.filter((operation) =>
+                    ['SENT', 'SCHEDULED', 'LOCKED'].includes(operation.state),
+                  )
+                  .map((operation) => operation.type)}
               />
             ),
           };

@@ -7,24 +7,25 @@
  */
 package io.camunda.configuration;
 
-import io.camunda.configuration.Gcs.GcsBackupStoreAuth;
-import io.camunda.configuration.RocksDb.AccessMetricsKind;
-import java.io.File;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.convert.DurationStyle;
+import org.springframework.boot.convert.ApplicationConversionService;
+import org.springframework.core.ResolvableType;
+import org.springframework.core.convert.ConversionService;
+import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
-import org.springframework.util.unit.DataSize;
 
 @Component("unifiedConfigurationHelper")
 public class UnifiedConfigurationHelper {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UnifiedConfigurationHelper.class);
+  private static final ConversionService CONVERSATION_SERVICE = new ApplicationConversionService();
 
   private static Environment environment;
 
@@ -40,7 +41,22 @@ public class UnifiedConfigurationHelper {
       final Class<T> expectedType,
       final BackwardsCompatibilityMode backwardsCompatibilityMode,
       final Set<String> legacyProperties) {
-    // Input validation
+
+    return UnifiedConfigurationHelper.validateLegacyConfiguration(
+        newProperty,
+        newValue,
+        ResolvableType.forClass(expectedType),
+        backwardsCompatibilityMode,
+        legacyProperties);
+  }
+
+  public static <T> T validateLegacyConfiguration(
+      final String newProperty,
+      final T newValue,
+      final ResolvableType expectedType,
+      final BackwardsCompatibilityMode backwardsCompatibilityMode,
+      final Set<String> legacyProperties) {
+
     if (backwardsCompatibilityMode == null) {
       throw new UnifiedConfigurationException("backwardsCompatibilityMode cannot be null");
     }
@@ -64,14 +80,20 @@ public class UnifiedConfigurationHelper {
   }
 
   private static <T> T getLegacyValue(
-      final Set<String> legacyProperties, final Class<T> expectedType) {
+      final Set<String> legacyProperties, final ResolvableType expectedType) {
     final Set<T> legacyValues = new HashSet<>();
 
     for (final String legacyProperty : legacyProperties) {
       final String strValue = environment.getProperty(legacyProperty);
       final T legacyValue = parseLegacyValue(strValue, expectedType);
 
-      legacyValues.add(legacyValue);
+      if (legacyValue != null) {
+        legacyValues.add(legacyValue);
+      }
+    }
+
+    if (legacyValues.isEmpty()) {
+      return null;
     }
 
     if (legacyValues.size() > 1) {
@@ -206,24 +228,28 @@ public class UnifiedConfigurationHelper {
   }
 
   @SuppressWarnings("unchecked")
-  private static <T> T parseLegacyValue(final String strValue, final Class<T> type) {
+  private static <T> T parseLegacyValue(final String strValue, final ResolvableType expectedType) {
     if (strValue == null) {
       return null;
     }
 
-    return switch (type.getSimpleName()) {
-      case "String" -> (T) strValue;
-      case "Integer" -> (T) Integer.valueOf(strValue);
-      case "Boolean" -> (T) Boolean.valueOf(strValue);
-      case "Duration" -> (T) DurationStyle.detectAndParse(strValue);
-      case "Long" -> (T) Long.valueOf(strValue);
-      case "DataSize" -> (T) DataSize.parse(strValue);
-      case "GcsBackupStoreAuth" -> (T) GcsBackupStoreAuth.valueOf(strValue.toUpperCase());
-      case "File" -> (T) new File(strValue);
-      case "SasTokenType" -> (T) SasToken.SasTokenType.valueOf(strValue.toUpperCase());
-      case "AccessMetricsKind" -> (T) AccessMetricsKind.valueOf(strValue.toUpperCase());
-      default -> throw new IllegalArgumentException("Unsupported type: " + type);
-    };
+    final Class<?> rawClass = expectedType.resolve();
+    final ResolvableType[] generics = expectedType.getGenerics();
+
+    // simple types
+    if (generics.length == 0) {
+      return (T) CONVERSATION_SERVICE.convert(strValue, rawClass);
+    }
+
+    // generic types
+    if (Collection.class.isAssignableFrom(rawClass) && generics.length == 1) {
+      final TypeDescriptor targetType =
+          TypeDescriptor.collection(rawClass, TypeDescriptor.valueOf(generics[0].resolve()));
+      return (T)
+          CONVERSATION_SERVICE.convert(strValue, TypeDescriptor.valueOf(String.class), targetType);
+    }
+
+    throw new IllegalArgumentException("Unsupported type: " + expectedType);
   }
 
   /* Setters used by tests to inject the mock objects */

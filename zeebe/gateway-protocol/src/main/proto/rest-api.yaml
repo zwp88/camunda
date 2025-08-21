@@ -1,6 +1,6 @@
 openapi: "3.0.3"
 info:
-  title: Orchestration Cluster REST API
+  title: Orchestration Cluster API
   version: "0.1"
   description: API for communicating with a Camunda 8 cluster.
   license:
@@ -4800,7 +4800,7 @@ paths:
         - Setup
       operationId: createAdminUser
       summary: Create admin user
-      description: Creates a new user and assign the admin role to it.
+      description: Creates a new user and assigns the admin role to it. This endpoint is only usable when users are managed in the Orchestration Cluster and while no user is assigned to the admin role.
       requestBody:
         content:
           application/json:
@@ -5649,8 +5649,9 @@ components:
           allOf:
             - $ref: "#/components/schemas/StringFilterProperty"
         tenantId:
-          type: string
           description: Tenant ID of this user task.
+          allOf:
+            - $ref: "#/components/schemas/StringFilterProperty"
         processDefinitionId:
           type: string
           description: The ID of the process definition.
@@ -9566,6 +9567,9 @@ components:
         decisionDefinitionKey:
           description: The unique key identifying the decision which was evaluate.
           type: string
+        decisionEvaluationInstanceKey:
+          description: The unique key identifying this decision evaluation instance.
+          type: string
     MatchedDecisionRuleItem:
       type: object
       description: A decision rule that matched within this decision evaluation.
@@ -10883,6 +10887,10 @@ components:
             $ref: "#/components/schemas/ProblemDetail"
     Unauthorized:
       description: The request lacks valid authentication credentials.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
       content:
         application/problem+json:
           schema:
@@ -10915,3 +10923,6 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    basicAuth:
+      type: http
+      scheme: basic
