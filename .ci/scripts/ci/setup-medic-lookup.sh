@@ -23,11 +23,14 @@ identityMedic="<!subteam^S053MF48SSH|identity-medic>"
 lookupTeamMedic["team-identity"]=$identityMedic
 lookupTeamMedic["Identity"]=$identityMedic
 
-# no current medic slack handle for this team
-distributedSystemsMedic="Distributed Systems Medic"
+# @distributed-systems-medic
+distributedSystemsMedic="<!subteam^S09B7LXB77D|distributed-systems-medic>"
 lookupTeamMedic["team-distributed-systems"]=$distributedSystemsMedic
 lookupTeamMedic["Distributed Systems"]=$distributedSystemsMedic
 lookupTeamMedic["DistributedSystems"]=$distributedSystemsMedic
+
+# failure in QA test
+lookupTeamMedic["QA"]="QA Acceptance Test, requires investigation"
 
 # catch all for tests without an assigned team
 lookupTeamMedic["General"]="General Test, requires investigation"

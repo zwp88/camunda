@@ -24,6 +24,9 @@ import io.camunda.zeebe.protocol.record.value.TenantOwned;
 import io.camunda.zeebe.util.buffer.BufferUtil;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.agrona.DirectBuffer;
 
 public final class ProcessInstanceCreationRecord extends UnifiedRecordValue
@@ -41,6 +44,7 @@ public final class ProcessInstanceCreationRecord extends UnifiedRecordValue
   private static final StringValue START_INSTRUCTIONS_KEY = new StringValue("startInstructions");
   private static final StringValue RUNTIME_INSTRUCTIONS_KEY =
       new StringValue("runtimeInstructions");
+  private static final StringValue TAGS_KEY = new StringValue("tags");
 
   private final StringProperty bpmnProcessIdProperty = new StringProperty(BPMN_PROCESS_ID_KEY, "");
   private final LongProperty processDefinitionKeyProperty =
@@ -60,9 +64,11 @@ public final class ProcessInstanceCreationRecord extends UnifiedRecordValue
       runtimeInstructionsProperty =
           new ArrayProperty<>(
               RUNTIME_INSTRUCTIONS_KEY, ProcessInstanceCreationRuntimeInstruction::new);
+  private final ArrayProperty<StringValue> tagsProperty =
+      new ArrayProperty<>(TAGS_KEY, StringValue::new);
 
   public ProcessInstanceCreationRecord() {
-    super(9);
+    super(10);
     declareProperty(bpmnProcessIdProperty)
         .declareProperty(processDefinitionKeyProperty)
         .declareProperty(processInstanceKeyProperty)
@@ -71,7 +77,8 @@ public final class ProcessInstanceCreationRecord extends UnifiedRecordValue
         .declareProperty(fetchVariablesProperty)
         .declareProperty(startInstructionsProperty)
         .declareProperty(runtimeInstructionsProperty)
-        .declareProperty(tenantIdProperty);
+        .declareProperty(tenantIdProperty)
+        .declareProperty(tagsProperty);
   }
 
   @Override
@@ -121,6 +128,22 @@ public final class ProcessInstanceCreationRecord extends UnifiedRecordValue
               return (ProcessInstanceCreationRuntimeInstructionValue) elementCopy;
             })
         .toList();
+  }
+
+  @Override
+  public Set<String> getTags() {
+    return StreamSupport.stream(tagsProperty.spliterator(), false)
+        .map(StringValue::getValue)
+        .map(BufferUtil::bufferAsString)
+        .collect(Collectors.toSet());
+  }
+
+  public ProcessInstanceCreationRecord setTags(final Set<String> tags) {
+    tagsProperty.reset();
+    if (tags != null) {
+      tags.forEach(tag -> tagsProperty.add().wrap(BufferUtil.wrapString(tag)));
+    }
+    return this;
   }
 
   public ProcessInstanceCreationRecord setVersion(final int version) {

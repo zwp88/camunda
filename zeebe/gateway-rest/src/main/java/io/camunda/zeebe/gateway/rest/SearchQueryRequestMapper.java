@@ -91,6 +91,7 @@ import io.camunda.zeebe.gateway.protocol.rest.*;
 import io.camunda.zeebe.gateway.rest.util.KeyUtil;
 import io.camunda.zeebe.gateway.rest.util.ProcessInstanceStateConverter;
 import io.camunda.zeebe.gateway.rest.validator.RequestValidator;
+import io.camunda.zeebe.gateway.rest.validator.TagsValidator;
 import io.camunda.zeebe.protocol.record.value.EntityType;
 import io.camunda.zeebe.util.Either;
 import jakarta.validation.constraints.NotNull;
@@ -613,10 +614,10 @@ public final class SearchQueryRequestMapper {
     final var builder = FilterBuilders.decisionInstance();
 
     if (filter != null) {
-      ofNullable(filter.getDecisionInstanceKey())
+      ofNullable(filter.getDecisionEvaluationKey())
           .map(KeyUtil::keyToLong)
           .ifPresent(builder::decisionInstanceKeys);
-      ofNullable(filter.getDecisionInstanceId()).ifPresent(builder::decisionInstanceIds);
+      ofNullable(filter.getDecisionEvaluationInstanceKey()).ifPresent(builder::decisionInstanceIds);
       ofNullable(filter.getState())
           .map(s -> convertEnum(s, DecisionInstanceState.class))
           .ifPresent(builder::states);
@@ -656,8 +657,8 @@ public final class SearchQueryRequestMapper {
       validationErrors.add(ERROR_SORT_FIELD_MUST_NOT_BE_NULL);
     } else {
       switch (field) {
-        case DECISION_INSTANCE_KEY -> builder.decisionInstanceKey();
-        case DECISION_INSTANCE_ID -> builder.decisionInstanceId();
+        case DECISION_EVALUATION_KEY -> builder.decisionInstanceKey();
+        case DECISION_EVALUATION_INSTANCE_KEY -> builder.decisionInstanceId();
         case STATE -> builder.state();
         case EVALUATION_DATE -> builder.evaluationDate();
         case EVALUATION_FAILURE -> builder.evaluationFailure();
@@ -1043,6 +1044,16 @@ public final class SearchQueryRequestMapper {
       ofNullable(filter.getIncidentErrorHashCode())
           .map(mapToOperations(Integer.class))
           .ifPresent(builder::incidentErrorHashCodeOperations);
+
+      if (!CollectionUtils.isEmpty(filter.getTags())) {
+        final var tagErrors = TagsValidator.validate(filter.getTags());
+        if (tagErrors.isEmpty()) {
+          ofNullable(filter.getTags()).ifPresent(builder::tags);
+        } else {
+          validationErrors.addAll(tagErrors);
+        }
+      }
+
       if (!CollectionUtils.isEmpty(filter.getVariables())) {
         final Either<List<String>, List<VariableValueFilter>> either =
             toVariableValueFilters(filter.getVariables());

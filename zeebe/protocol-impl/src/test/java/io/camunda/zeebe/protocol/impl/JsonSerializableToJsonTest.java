@@ -753,7 +753,8 @@ final class JsonSerializableToJsonTest {
                   .setElementId(wrapString(activityId))
                   .setElementInstanceKey(activityInstanceKey)
                   .setChangedAttributes(changedAttributes)
-                  .setResult(result);
+                  .setResult(result)
+                  .setTags(Set.of("tag1", "tag2"));
 
               return record;
             },
@@ -791,6 +792,7 @@ final class JsonSerializableToJsonTest {
               "timeout": -1,
               "tenantId": "<default>",
               "changedAttributes": ["bar", "foo"],
+              "tags": ["tag1", "tag2"],
               "result": {
                 "type": "USER_TASK",
                 "denied": true,
@@ -932,7 +934,8 @@ final class JsonSerializableToJsonTest {
                       .setElementId(wrapString(elementId))
                       .setElementInstanceKey(activityInstanceKey)
                       .setChangedAttributes(changedAttributes)
-                      .setResult(result);
+                      .setResult(result)
+                      .setTags(Set.of("tag1", "tag2"));
 
               record.setCustomHeaders(wrapArray(MsgPackConverter.convertToMsgPack(customHeaders)));
               return record;
@@ -963,6 +966,7 @@ final class JsonSerializableToJsonTest {
           "deadline": 13,
           "timeout": 14,
           "tenantId": "<default>",
+          "tags": ["tag1", "tag2"],
           "changedAttributes": ["bar", "foo"],
           "result": {
             "type": "AD_HOC_SUB_PROCESS",
@@ -1033,6 +1037,7 @@ final class JsonSerializableToJsonTest {
           "deadline": -1,
           "timeout": -1,
           "tenantId": "<default>",
+          "tags": [],
           "changedAttributes": [],
           "result": {
             "type": "USER_TASK",
@@ -1088,6 +1093,7 @@ final class JsonSerializableToJsonTest {
           "processDefinitionVersion": -1,
           "customHeaders": {},
           "tenantId": "<default>",
+          "tags": [],
           "changedAttributes": [],
           "result": {
             "type": "USER_TASK",
@@ -1597,7 +1603,8 @@ final class JsonSerializableToJsonTest {
                           MsgPackConverter.convertToMsgPack("{'foo':'bar','baz':'boz'}")))
                   .addStartInstruction(
                       new ProcessInstanceCreationStartInstruction().setElementId("element"))
-                  .setProcessInstanceKey(instanceKey);
+                  .setProcessInstanceKey(instanceKey)
+                  .setTags(Set.of("tag1", "tag2"));
             },
         """
         {
@@ -1615,7 +1622,8 @@ final class JsonSerializableToJsonTest {
             }
           ],
           "tenantId": "test-tenant",
-          "runtimeInstructions": []
+          "runtimeInstructions": [],
+          "tags": ["tag1", "tag2"]
         }
         """
       },
@@ -1635,7 +1643,8 @@ final class JsonSerializableToJsonTest {
           "processInstanceKey": -1,
           "startInstructions": [],
           "tenantId": "<default>",
-          "runtimeInstructions": []
+          "runtimeInstructions": [],
+          "tags": []
         }
         """
       },
@@ -1740,7 +1749,8 @@ final class JsonSerializableToJsonTest {
                   .setBpmnEventType(BpmnEventType.UNSPECIFIED)
                   .setElementInstancePath(elementInstancePath)
                   .setProcessDefinitionPath(processDefinitionPath)
-                  .setCallingElementPath(callingElementPath);
+                  .setCallingElementPath(callingElementPath)
+                  .setTags(Set.of("tag1", "tag2"));
             },
         """
         {
@@ -1757,7 +1767,8 @@ final class JsonSerializableToJsonTest {
           "tenantId": "<default>",
           "elementInstancePath":[[101, 102], [103, 104]],
           "processDefinitionPath": [101, 102],
-          "callingElementPath": [12345, 67890]
+          "callingElementPath": [12345, 67890],
+          "tags": ["tag1", "tag2"]
         }
         """
       },
@@ -1783,7 +1794,8 @@ final class JsonSerializableToJsonTest {
           "tenantId": "<default>",
           "elementInstancePath":[],
           "processDefinitionPath": [],
-          "callingElementPath": []
+          "callingElementPath": [],
+          "tags": []
         }
         """
       },

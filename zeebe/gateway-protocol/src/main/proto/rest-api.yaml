@@ -2579,7 +2579,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /decision-instances/{decisionInstanceId}:
+  /decision-instances/{decisionEvaluationInstanceKey}:
     get:
       tags:
         - Decision instance
@@ -2588,10 +2588,10 @@ paths:
       description: |
         Returns a decision instance.
       parameters:
-        - name: decisionInstanceId
+        - name: decisionEvaluationInstanceKey
           in: path
           required: true
-          description: The assigned ID of the decision instance, which acts as a unique identifier for this decision instance.
+          description: The assigned key of the evaluated decision instance, which acts as a unique identifier for this decision instance.
           schema:
             type: string
       responses:
@@ -2610,7 +2610,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           description: >
-            The decision instance with the given ID was not found.
+            The decision instance with the given key was not found.
             More details are provided in the response body.
           content:
             application/problem+json:
@@ -6461,6 +6461,8 @@ components:
           description: The process definition key.
           allOf:
             - $ref: "#/components/schemas/BasicStringFilterProperty"
+        tags:
+          $ref: '#/components/schemas/TagSet'
     ProcessInstanceFilter:
       description: Process instance search filter.
       allOf:
@@ -6558,6 +6560,8 @@ components:
         parentElementInstanceKey:
           type: string
           description: The parent element instance key.
+        tags:
+          $ref: '#/components/schemas/TagSet'
     ProcessInstanceStateEnum:
       description: Process instance states
       enum:
@@ -8691,6 +8695,8 @@ components:
           $ref: "#/components/schemas/JobListenerEventTypeEnum"
         userTask:
           $ref: "#/components/schemas/UserTaskProperties"
+        tags:
+          $ref: "#/components/schemas/TagSet"
     UserTaskProperties:
       type: object
       description: Contains properties of a user task.
@@ -9624,8 +9630,8 @@ components:
             - decisionDefinitionName
             - decisionDefinitionType
             - decisionDefinitionVersion
-            - decisionInstanceId
-            - decisionInstanceKey
+            - decisionEvaluationInstanceKey
+            - decisionEvaluationKey
             - elementInstanceKey
             - evaluationDate
             - evaluationFailure
@@ -9655,9 +9661,9 @@ components:
       description: Decision instance search filter.
       type: object
       properties:
-        decisionInstanceId:
+        decisionEvaluationInstanceKey:
           type: string
-          description: The ID of the decision instance.
+          description: The key of the evaluated decision instance.
         state:
           $ref: "#/components/schemas/DecisionInstanceStateEnum"
         evaluationFailure:
@@ -9682,10 +9688,10 @@ components:
         tenantId:
           type: string
           description: The tenant ID of the decision instance.
-        decisionInstanceKey:
+        decisionEvaluationKey:
           type: string
           description: |
-            The key of the decision instance. Note that this is not the unique identifier of the entity itself; the `decisionInstanceId` serves as the primary identifier.
+            The key of the decision instance. Note that this is not the unique identifier of the entity itself; the `decisionEvaluationInstanceKey` serves as the primary identifier.
         processDefinitionKey:
           type: string
           description: The key of the process definition.
@@ -9714,9 +9720,9 @@ components:
     DecisionInstanceResult:
       type: object
       properties:
-        decisionInstanceId:
+        decisionEvaluationInstanceKey:
           type: string
-          description: The ID of the decision instance.
+          description: The key of the evaluated decision instance.
         state:
           $ref: "#/components/schemas/DecisionInstanceStateEnum"
         evaluationDate:
@@ -9744,9 +9750,9 @@ components:
         tenantId:
           type: string
           description: The tenant ID of the decision instance.
-        decisionInstanceKey:
+        decisionEvaluationKey:
           type: string
-          description: The key of the decision instance. Note that this is not the unique identifier of the entity itself; the `decisionInstanceId` serves as the primary identifier.
+          description: The key of the decision instance. Note that this is not the unique identifier of the entity itself; the `decisionEvaluationInstanceKey` serves as the primary identifier.
         processDefinitionKey:
           type: string
           description: The key of the process definition.
@@ -10159,6 +10165,8 @@ components:
         tenantId:
           description: The tenant ID of the process definition.
           type: string
+        tags:
+          $ref: '#/components/schemas/TagSet'
         operationReference:
           $ref: '#/components/schemas/OperationReference'
         startInstructions:
@@ -10276,6 +10284,8 @@ components:
             The unique identifier of the created process instance; to be used wherever a request
             needs a process instance key (e.g. CancelProcessInstanceRequest).
           type: string
+        tags:
+          $ref: '#/components/schemas/TagSet'
     ProcessInstanceMigrationBatchOperationRequest:
       type: object
       properties:
@@ -10877,6 +10887,20 @@ components:
       required:
         - sourceElementId
         - targetElementId
+    Tag:
+      type: string
+      description: A tag. Needs to start with a letter; then alphanumerics, `_`, `-`, `:`, or `.`; length ≤ 100.
+      minLength: 1
+      maxLength: 100
+      pattern: '^[A-Za-z][A-Za-z0-9_\-:.]{0,99}$'
+      example: "business_key:1234"
+    TagSet:
+      description: List of tags
+      type: array
+      items:
+        $ref: '#/components/schemas/Tag'
+      uniqueItems: true
+      maxItems: 10
   responses:
     InternalServerError:
       description: >

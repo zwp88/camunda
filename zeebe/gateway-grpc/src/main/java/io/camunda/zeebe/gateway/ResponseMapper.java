@@ -194,6 +194,7 @@ public final class ResponseMapper {
         .setVersion(brokerResponse.getVersion())
         .setTenantId(brokerResponse.getTenantId())
         .setProcessInstanceKey(brokerResponse.getProcessInstanceKey())
+        .addAllTags(brokerResponse.getTags())
         .build();
   }
 
@@ -206,6 +207,7 @@ public final class ResponseMapper {
         .setTenantId(brokerResponse.getTenantId())
         .setProcessInstanceKey(brokerResponse.getProcessInstanceKey())
         .setVariables(bufferAsJson(brokerResponse.getVariablesBuffer()))
+        .addAllTags(brokerResponse.getTags())
         .build();
   }
 
@@ -384,7 +386,8 @@ public final class ResponseMapper {
             .setKind(EnumUtil.convert(job.getJobKind(), ActivatedJob.JobKind.class))
             .setListenerEventType(
                 EnumUtil.convert(
-                    job.getJobListenerEventType(), ActivatedJob.ListenerEventType.class));
+                    job.getJobListenerEventType(), ActivatedJob.ListenerEventType.class))
+            .addAllTags(job.getTags());
 
     if (job.getJobKind().equals(io.camunda.zeebe.protocol.record.value.JobKind.TASK_LISTENER)
         && !job.getCustomHeaders().isEmpty()) {

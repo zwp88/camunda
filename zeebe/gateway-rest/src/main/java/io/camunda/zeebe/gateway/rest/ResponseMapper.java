@@ -100,6 +100,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -201,7 +202,8 @@ public final class ResponseMapper {
         .tenantId(job.getTenantId())
         .kind(EnumUtil.convert(job.getJobKind(), JobKindEnum.class))
         .listenerEventType(
-            EnumUtil.convert(job.getJobListenerEventType(), JobListenerEventTypeEnum.class));
+            EnumUtil.convert(job.getJobListenerEventType(), JobListenerEventTypeEnum.class))
+        .tags(job.getTags());
   }
 
   private static UserTaskProperties toUserTaskProperties(final JobRecord job) {
@@ -503,7 +505,8 @@ public final class ResponseMapper {
         brokerResponse.getVersion(),
         brokerResponse.getProcessInstanceKey(),
         brokerResponse.getTenantId(),
-        null);
+        null,
+        brokerResponse.getTags());
   }
 
   public static ResponseEntity<Object> toCreateProcessInstanceWithResultResponse(
@@ -514,7 +517,8 @@ public final class ResponseMapper {
         brokerResponse.getVersion(),
         brokerResponse.getProcessInstanceKey(),
         brokerResponse.getTenantId(),
-        brokerResponse.getVariables());
+        brokerResponse.getVariables(),
+        brokerResponse.getTags());
   }
 
   private static ResponseEntity<Object> buildCreateProcessInstanceResponse(
@@ -523,7 +527,8 @@ public final class ResponseMapper {
       final Integer version,
       final Long processInstanceKey,
       final String tenantId,
-      final Map<String, Object> variables) {
+      final Map<String, Object> variables,
+      final Set<String> tags) {
     final var response =
         new CreateProcessInstanceResult()
             .processDefinitionKey(KeyUtil.keyToString(processDefinitionKey))
@@ -533,6 +538,9 @@ public final class ResponseMapper {
             .tenantId(tenantId);
     if (variables != null) {
       response.variables(variables);
+    }
+    if (tags != null) {
+      response.setTags(tags);
     }
 
     return new ResponseEntity<>(response, HttpStatus.OK);
