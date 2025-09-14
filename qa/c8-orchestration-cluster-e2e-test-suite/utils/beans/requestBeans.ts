@@ -8,8 +8,26 @@
 
 import {generateUniqueId} from '../constants';
 import * as fs from 'node:fs';
+import {
+  createMappingRule,
+  roleDescriptionFromState,
+  roleNameFromState,
+  mappingRuleIdFromState,
+  mappingRuleNameFromState,
+  mappingRuleClaimNameFromState,
+  mappingRuleClaimValueFromState,
+  roleIdValueUsingKey,
+  userFromState,
+  mappingRuleIdFromKey,
+} from '../requestHelpers';
+import {APIRequestContext} from 'playwright-core';
 
 export const groupRequiredFields: string[] = ['groupId', 'name', 'description'];
+export const tenantRequiredFields: string[] = [
+  'tenantId',
+  'name',
+  'description',
+];
 export const mappingRuleRequiredFields: string[] = [
   'claimName',
   'claimValue',
@@ -17,6 +35,19 @@ export const mappingRuleRequiredFields: string[] = [
   'mappingRuleId',
 ];
 export const roleRequiredFields: string[] = ['roleId', 'name', 'description'];
+export const authorizedComponentRequiredFields: string[] = ['authorizationKey'];
+export const userRequiredFields: string[] = ['username', 'name', 'email'];
+export const authenticationRequiredFields: string[] = [
+  'username',
+  'displayName',
+  'email',
+  'authorizedComponents',
+  'tenants',
+  'groups',
+  'roles',
+  'c8Links',
+  'canLogout',
+];
 export const licenseRequiredFields: string[] = [
   'validLicense',
   'licenseType',
@@ -25,11 +56,10 @@ export const licenseRequiredFields: string[] = [
 export const messageSubscriptionRequiredFields = [
   'messageSubscriptionKey',
   'processDefinitionId',
-  'processDefinitionKey',
   'processInstanceKey',
   'elementId',
   'elementInstanceKey',
-  'messageSubscriptionType',
+  'messageSubscriptionState',
   'lastUpdatedDate',
   'messageName',
   'correlationKey',
@@ -100,11 +130,67 @@ export function CREATE_NEW_ROLE() {
   };
 }
 
-export function PUBLISH_NEW_MESSAGE() {
+export function CREATE_NEW_USER() {
+  const uid = generateUniqueId();
   return {
-    name: `msg-${Date.now()}`,
-    correlationKey: `corr-${Math.random().toString(36).slice(2, 10)}`,
-    messageId: `corr-${Math.random().toString(36).slice(2, 10)}`,
+    username: `username-${uid}`,
+    name: `name-${uid}`,
+    email: `email-${uid}@example.com`,
+    password: `password-${uid}`,
+  };
+}
+
+export function UPDATE_USER() {
+  const uid = generateUniqueId();
+  return {
+    name: `updated-name-${uid}`,
+    email: `updated-email-${uid}@example.com`,
+  };
+}
+
+export function UPDATE_ROLE() {
+  const uid = generateUniqueId();
+  return {
+    name: `role-updated-${uid}`,
+    description: `Updated description-${uid}`,
+  };
+}
+
+export function CREATE_NEW_TENANT() {
+  const uid = generateUniqueId();
+  return {
+    tenantId: `tenant-${uid}`,
+    name: `Test Tenant ${uid}`,
+    description: `E2E test tenant ${uid}`,
+  };
+}
+
+export function UPDATE_TENANT() {
+  const uid = generateUniqueId();
+  return {
+    name: `tenant-updated-${uid}`,
+    description: `Updated description-${uid}`,
+  };
+}
+
+export function TENANT_EXPECTED_BODY(
+  name: string,
+  tenantId: string,
+  description: string,
+) {
+  return {
+    name: name,
+    tenantId: tenantId,
+    description: description,
+  };
+}
+
+export function PUBLISH_NEW_MESSAGE() {
+  const uid = generateUniqueId();
+  return {
+    name: `msg-${uid}`,
+    correlationKey: `corr-${uid}`,
+    messageId: `corr-${uid}`,
     timeToLive: 300000,
     variables: {foo: 'bar'},
   };
@@ -215,28 +301,40 @@ export const CREATE_DOCUMENT_LINK_REQUEST = {
   timeToLive: 60000,
 };
 
-export function CREATE_MAPPING_EXPECTED_BODY_USING_GROUP(
-  groupId: string,
+export function MAPPING_RULE_EXPECTED_BODY_USING_STATE(
+  key: string,
   state: Record<string, unknown>,
   nth: number = 1,
 ) {
   return {
-    claimName: state[`${groupId}claimName${nth}`] as string,
-    claimValue: state[`${groupId}claimValue${nth}`] as string,
-    name: state[`${groupId}name${nth}`] as string,
-    mappingRuleId: state[`${groupId}mappingRule${nth}`] as string,
+    claimName: mappingRuleClaimNameFromState(key, state, nth) as string,
+    claimValue: mappingRuleClaimValueFromState(key, state, nth) as string,
+    name: mappingRuleNameFromState(key, state, nth) as string,
+    mappingRuleId: mappingRuleIdFromState(key, state, nth) as string,
   };
 }
 
-export function CREATE_GROUP_ROLE_EXPECTED_BODY_USING_GROUP(
-  groupId: string,
+export function MAPPING_RULE_EXPECTED_BODY_USING_KEY(
+  key: string,
+  state: Record<string, unknown>,
+) {
+  return {
+    claimName: state[`claimName${key}`] as string,
+    claimValue: state[`claimValue${key}`] as string,
+    name: state[`name${key}`] as string,
+    mappingRuleId: state[`mappingRuleId${key}`] as string,
+  };
+}
+
+export function ROLE_EXPECTED_BODY(
+  key: string,
   state: Record<string, unknown>,
   nth: number = 1,
 ) {
   return {
-    name: state[`${groupId}name${nth}`] as string,
-    roleId: state[`${groupId}roleId${nth}`] as string,
-    description: state[`${groupId}description${nth}`] as string,
+    name: roleNameFromState(key, state, nth),
+    roleId: roleIdValueUsingKey(key, state, nth),
+    description: roleDescriptionFromState(key, state, nth),
   };
 }
 
@@ -246,6 +344,67 @@ export function CREATE_GROUP_USERS_EXPECTED_BODY_USING_GROUP(
   nth: number = 1,
 ) {
   return {
-    username: state[`${groupId}user${nth}`] as string,
+    username: userFromState(groupId, state, nth),
+  };
+}
+
+export function GROUPS_EXPECTED_BODY(groupId: string) {
+  return {
+    groupId: groupId,
+  };
+}
+
+export function CREATE_COMPONENT_AUTHORIZATION(
+  ownerType: 'ROLE' | 'USER' | 'GROUP',
+  ownerId: string,
+) {
+  return {
+    ownerType: ownerType,
+    ownerId: ownerId,
+    resourceType: 'COMPONENT',
+    resourceId: '*',
+    permissionTypes: ['ACCESS'],
+  };
+}
+
+export function GET_CURRENT_USER_EXPECTED_BODY(
+  username: string,
+  name: string,
+  email: string,
+  assignedResources: {
+    authorizedComponents?: string[];
+    tenants?: {name: string; tenantId: string; description: string}[];
+    groups?: string[];
+    roles?: string[];
+  } = {
+    authorizedComponents: [],
+    tenants: [],
+    groups: [],
+    roles: [],
+  },
+) {
+  return {
+    username: username,
+    displayName: name,
+    email: email,
+    authorizedComponents: assignedResources.authorizedComponents ?? [],
+    tenants: assignedResources.tenants ?? [],
+    groups: assignedResources.groups ?? [],
+    roles: assignedResources.roles ?? [],
+    c8Links: {},
+    canLogout: true,
+  };
+}
+
+export async function mappingRuleBundle(
+  request: APIRequestContext,
+  state: Record<string, unknown>,
+) {
+  const mappingRuleKey = 'mappingRuleId' + generateUniqueId();
+  await createMappingRule(request, state, mappingRuleKey);
+  return {
+    mappingRuleKey: mappingRuleKey,
+    mappingRuleId: mappingRuleIdFromKey(mappingRuleKey, state),
+    responseBody: MAPPING_RULE_EXPECTED_BODY_USING_KEY(mappingRuleKey, state),
   };
 }

@@ -22,6 +22,7 @@ import io.camunda.it.rdbms.db.util.RdbmsTestConfiguration;
 import io.camunda.search.entities.DecisionInstanceEntity.DecisionDefinitionType;
 import io.camunda.search.entities.DecisionInstanceEntity.DecisionInstanceState;
 import io.camunda.search.filter.DecisionInstanceFilter;
+import io.camunda.search.filter.Operation;
 import io.camunda.search.page.SearchQueryPage;
 import io.camunda.search.query.DecisionInstanceQuery;
 import io.camunda.search.sort.DecisionInstanceSort;
@@ -41,10 +42,12 @@ import org.springframework.test.context.TestPropertySource;
 @DataJdbcTest
 @ContextConfiguration(classes = {RdbmsTestConfiguration.class, RdbmsConfiguration.class})
 @AutoConfigurationPackage
-@TestPropertySource(properties = {"spring.liquibase.enabled=false", "camunda.database.type=rdbms"})
+@TestPropertySource(
+    properties = {"spring.liquibase.enabled=false", "camunda.data.secondary-storage.type=rdbms"})
 public class DecisionInstanceSpecificFilterIT {
 
   public static final OffsetDateTime NOW = OffsetDateTime.now();
+  public static final OffsetDateTime THEN = OffsetDateTime.parse("2020-01-01T00:00:00Z");
 
   @Autowired private RdbmsService rdbmsService;
 
@@ -98,9 +101,11 @@ public class DecisionInstanceSpecificFilterIT {
                     .flowNodeInstanceKey(126L)
                     .state(DecisionInstanceState.EVALUATED)
                     .decisionType(DecisionDefinitionType.DECISION_TABLE)
+                    .evaluationDate(THEN)
                     .decisionDefinitionKey(decisionDefinition.decisionDefinitionKey())
                     .decisionDefinitionId(decisionDefinition.decisionDefinitionId())
                     .evaluationFailure("failure-42")
+                    .tenantId("unique-tenant-42")
                     .result("result-42")));
 
     final var searchResult =
@@ -128,6 +133,10 @@ public class DecisionInstanceSpecificFilterIT {
         DecisionInstanceFilter.of(b -> b.states(DecisionInstanceState.EVALUATED)),
         DecisionInstanceFilter.of(b -> b.decisionTypes(DecisionDefinitionType.DECISION_TABLE)),
         DecisionInstanceFilter.of(b -> b.evaluationFailures("failure-42")),
-        DecisionInstanceFilter.of(b -> b.decisionDefinitionNames("Decision 100")));
+        DecisionInstanceFilter.of(b -> b.decisionDefinitionNames("Decision 100")),
+        DecisionInstanceFilter.of(b -> b.decisionDefinitionKeyOperations(Operation.eq(100L))),
+        DecisionInstanceFilter.of(b -> b.flowNodeInstanceKeyOperations(Operation.eq(126L))),
+        DecisionInstanceFilter.of(b -> b.evaluationDateOperations(Operation.lte(THEN))),
+        DecisionInstanceFilter.of(b -> b.tenantIds("unique-tenant-42", "foo")));
   }
 }

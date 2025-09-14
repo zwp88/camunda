@@ -22,6 +22,10 @@ import io.camunda.client.CamundaClient;
 import io.camunda.client.CamundaClientBuilder;
 import io.camunda.client.CamundaClientConfiguration;
 import io.camunda.client.impl.oauth.OAuthCredentialsProvider;
+import io.camunda.client.spring.properties.CamundaClientAuthProperties;
+import io.camunda.client.spring.properties.CamundaClientCloudProperties;
+import io.camunda.client.spring.properties.CamundaClientProperties;
+import io.camunda.client.spring.properties.CamundaClientProperties.ClientMode;
 import io.camunda.process.test.api.CamundaClientBuilderFactory;
 import io.camunda.process.test.api.CamundaProcessTestRuntimeMode;
 import io.camunda.process.test.impl.configuration.CamundaProcessTestRuntimeConfiguration;
@@ -33,10 +37,6 @@ import io.camunda.process.test.impl.runtime.CamundaProcessTestRuntimeBuilder;
 import io.camunda.process.test.impl.runtime.CamundaProcessTestRuntimeDefaults;
 import io.camunda.process.test.impl.runtime.CamundaSpringProcessTestRuntimeBuilder;
 import io.camunda.process.test.impl.runtime.ContainerRuntimePorts;
-import io.camunda.spring.client.properties.CamundaClientAuthProperties;
-import io.camunda.spring.client.properties.CamundaClientCloudProperties;
-import io.camunda.spring.client.properties.CamundaClientProperties;
-import io.camunda.spring.client.properties.CamundaClientProperties.ClientMode;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -165,13 +165,13 @@ public class CamundaSpringProcessTestRuntimeBuilderTest {
 
     assertThat(configuration.getRestAddress())
         .hasHost("0.0.0.0")
-        .hasPort(ContainerRuntimePorts.CAMUNDA_REST_API);
+        .hasPort(ContainerRuntimePorts.CAMUNDA_REST_API)
+        .hasScheme("http");
 
     assertThat(configuration.getGrpcAddress())
         .hasHost("0.0.0.0")
-        .hasPort(ContainerRuntimePorts.CAMUNDA_GATEWAY_API);
-
-    assertThat(configuration.isPlaintextConnectionEnabled()).isTrue();
+        .hasPort(ContainerRuntimePorts.CAMUNDA_GATEWAY_API)
+        .hasScheme("http");
   }
 
   @Test
@@ -215,7 +215,6 @@ public class CamundaSpringProcessTestRuntimeBuilderTest {
 
     assertThat(configuration.getRestAddress()).isEqualTo(remoteCamundaRestApiAddress);
     assertThat(configuration.getGrpcAddress()).isEqualTo(remoteCamundaGrpcApiAddress);
-    assertThat(configuration.isPlaintextConnectionEnabled()).isTrue();
     assertThat(configuration.getDefaultRequestTimeout()).isEqualTo(Duration.ofHours(1));
   }
 

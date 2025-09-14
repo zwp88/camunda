@@ -182,6 +182,8 @@ export class IdentityAuthorizationsPage {
     await this.selectResourceTypeTab(authorization.resourceType);
     const item = this.getAuthorizationCell(authorization.ownerId);
     await waitForItemInList(this.page, item, {
+      clickNext: true,
+      timeout: 60000,
       onAfterReload: () =>
         this.selectResourceTypeTab(authorization.resourceType),
     });
@@ -201,7 +203,36 @@ export class IdentityAuthorizationsPage {
 
   async selectAuthorizationOwner(authorization: {ownerId: string}) {
     await this.createAuthorizationOwnerComboBox.click();
-    await this.createAuthorizationOwnerOption(authorization.ownerId).click();
+    try {
+      await this.createAuthorizationOwnerOption(authorization.ownerId).click({
+        timeout: 20000,
+      });
+    } catch (error) {
+      console.log('Error while selecting owner' + error);
+      await this.createAuthorizationOwnerComboBox.fill(authorization.ownerId);
+    }
+  }
+
+  async findAuthorizationInPaginatedList(
+    ownerId: string,
+    resourceType?: string,
+  ): Promise<boolean> {
+    const authorizationRow = this.authorizationRowByOwnerId(ownerId);
+
+    try {
+      await waitForItemInList(this.page, authorizationRow, {
+        clickNext: true,
+        timeout: 30000,
+        onAfterReload: async () => {
+          if (resourceType) {
+            await this.selectResourceTypeTab(resourceType);
+          }
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async assertAuthorizationExists(
@@ -209,11 +240,20 @@ export class IdentityAuthorizationsPage {
     ownerType: string,
     accessPermissions?: string[],
   ) {
+    const exists = await this.findAuthorizationInPaginatedList(ownerId);
+
+    if (!exists) {
+      throw new Error(
+        `Authorization for owner ${ownerId} not found in paginated list`,
+      );
+    }
+
     const authorizationRow = this.authorizationRowByOwnerId(ownerId);
+
     await expect(authorizationRow).toBeVisible();
     await expect(authorizationRow).toContainText(ownerType.toUpperCase());
 
-    if (accessPermissions) {
+    if (accessPermissions && accessPermissions.length > 0) {
       for (const permission of accessPermissions) {
         await expect(authorizationRow).toContainText(permission.toUpperCase());
       }

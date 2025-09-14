@@ -20,6 +20,7 @@ import io.zeebe.containers.ZeebeContainer;
 import io.zeebe.containers.ZeebeGatewayContainer;
 import io.zeebe.containers.ZeebeTopologyWaitStrategy;
 import io.zeebe.containers.ZeebeVolume;
+import java.net.URI;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -133,7 +134,7 @@ final class ContainerState implements AutoCloseable {
   }
 
   public void start(final boolean enableDebug, final boolean withRemoteDebugging) {
-    final String contactPoint;
+    final URI grpcAddress;
     broker =
         new ZeebeContainer(brokerImage)
             .withEnv("ZEEBE_LOG_LEVEL", "DEBUG")
@@ -146,6 +147,9 @@ final class ContainerState implements AutoCloseable {
             .withEnv(CREATE_SCHEMA_ENV_VAR, "false")
             .withEnv(UNPROTECTED_API_ENV_VAR, "true")
             .withEnv(AUTHORIZATION_CHECKS_ENV_VAR, "false")
+            .withEnv("CAMUNDA_DATA_SECONDARYSTORAGE_TYPE", "NONE")
+            .withEnv("CAMUNDA_DATABASE_TYPE", "NONE")
+            .withEnv("CAMUNDA_REST_ENABLED", "false")
             .withTopologyCheck(new ZeebeTopologyWaitStrategy(1, 1, PARTITION_COUNT))
             .withZeebeData(volume)
             .withNetwork(network);
@@ -179,7 +183,7 @@ final class ContainerState implements AutoCloseable {
     Failsafe.with(CONTAINER_START_RETRY_POLICY).run(() -> broker.self().start());
 
     if (gatewayImage == null) {
-      contactPoint = broker.getExternalGatewayAddress();
+      grpcAddress = broker.getGrpcAddress();
     } else {
       gateway =
           new ZeebeGatewayContainer(gatewayImage)
@@ -191,15 +195,11 @@ final class ContainerState implements AutoCloseable {
               .withNetwork(network);
 
       Failsafe.with(CONTAINER_START_RETRY_POLICY).run(() -> gateway.self().start());
-      contactPoint = gateway.getExternalGatewayAddress();
+      grpcAddress = gateway.getGrpcAddress();
     }
 
     client =
-        CamundaClient.newClientBuilder()
-            .gatewayAddress(contactPoint)
-            .usePlaintext()
-            .preferRestOverGrpc(false)
-            .build();
+        CamundaClient.newClientBuilder().grpcAddress(grpcAddress).preferRestOverGrpc(false).build();
     partitionsActuator = PartitionsActuator.of(broker);
   }
 

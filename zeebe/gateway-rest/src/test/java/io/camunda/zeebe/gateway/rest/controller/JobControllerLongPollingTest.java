@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.jayway.jsonpath.JsonPath;
 import io.camunda.security.auth.CamundaAuthenticationProvider;
 import io.camunda.security.configuration.MultiTenancyConfiguration;
+import io.camunda.service.ApiServicesExecutorProvider;
 import io.camunda.service.JobServices;
 import io.camunda.service.security.SecurityContextProvider;
 import io.camunda.zeebe.broker.client.api.BrokerClient;
@@ -26,9 +27,9 @@ import io.camunda.zeebe.gateway.impl.job.ActivateJobsHandler;
 import io.camunda.zeebe.gateway.impl.job.LongPollingActivateJobsHandler;
 import io.camunda.zeebe.gateway.metrics.LongPollingMetrics;
 import io.camunda.zeebe.gateway.protocol.rest.JobActivationResult;
-import io.camunda.zeebe.gateway.rest.ResponseMapper;
 import io.camunda.zeebe.gateway.rest.RestControllerTest;
 import io.camunda.zeebe.gateway.rest.controller.util.ResettableJobActivationRequestResponseObserver;
+import io.camunda.zeebe.gateway.rest.mapper.ResponseMapper;
 import io.camunda.zeebe.protocol.Protocol;
 import io.camunda.zeebe.protocol.record.RejectionType;
 import io.camunda.zeebe.protocol.record.intent.Intent;
@@ -427,7 +428,12 @@ public class JobControllerLongPollingTest extends RestControllerTest {
         final BrokerClient brokerClient,
         final ActivateJobsHandler<JobActivationResult> activateJobsHandler) {
       return new JobServices<>(
-          brokerClient, new SecurityContextProvider(), activateJobsHandler, null, null);
+          brokerClient,
+          new SecurityContextProvider(),
+          activateJobsHandler,
+          null,
+          null,
+          new ApiServicesExecutorProvider(1, 1, 1, 1));
     }
   }
 }

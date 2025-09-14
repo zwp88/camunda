@@ -15,14 +15,18 @@ export type Credentials = {
 
 export const credentials: Credentials = {
   baseUrl: 'http://localhost:8080',
-  accessToken: Buffer.from(`demo:demo`).toString('base64'),
+  accessToken: encode(`demo:demo`),
 };
+
+export function encode(auth: string) {
+  return Buffer.from(auth).toString('base64');
+}
 
 export const paginatedResponseFields: string[] = ['items', 'page'];
 
 export function authHeaders(token?: string): Record<string, string> {
   const h: Record<string, string> = {};
-  if (token) h.Authorization = `Basic ${credentials.accessToken}`;
+  if (token) h.Authorization = `Basic ${token}`;
   return h;
 }
 
@@ -57,14 +61,44 @@ export async function assertUnsupportedMediaTypeRequest(response: APIResponse) {
 
 export async function assertBadRequest(
   response: APIResponse,
-  detail: string,
+  detail: string | RegExp,
   title = 'Bad Request',
 ) {
   expect(response.status()).toBe(400);
   const json = await response.json();
   assertRequiredFields(json, ['detail', 'title']);
   expect(json.title).toBe(title);
-  expect(json.detail).toContain(detail);
+  expect(json.detail).toMatch(detail);
+}
+
+export async function assertPaginatedRequest(
+  response: APIResponse,
+  options: {
+    totalItemGreaterThan?: number;
+    itemLengthGreaterThan?: number;
+    totalItemsEqualTo?: number;
+    itemsLengthEqualTo?: number;
+  },
+) {
+  expect(response.status()).toBe(200);
+  const json = await response.json();
+  assertRequiredFields(json, paginatedResponseFields);
+  if (options.totalItemGreaterThan !== undefined) {
+    expect(json.page.totalItems).toBeGreaterThan(
+      options.totalItemGreaterThan as number,
+    );
+  }
+  if (options.itemLengthGreaterThan !== undefined) {
+    expect(json.items.length).toBeGreaterThan(
+      options.itemLengthGreaterThan as number,
+    );
+  }
+  if (options.totalItemsEqualTo !== undefined) {
+    expect(json.page.totalItems).toBe(options.totalItemsEqualTo as number);
+  }
+  if (options.itemsLengthEqualTo !== undefined) {
+    expect(json.items.length).toBe(options.itemsLengthEqualTo as number);
+  }
 }
 
 export async function assertForbiddenRequest(
@@ -144,10 +178,12 @@ export function assertEqualsForKeys(
   }
 }
 
-export function jsonHeaders(): Record<string, string> {
+export function jsonHeaders(
+  auth: string = credentials.accessToken,
+): Record<string, string> {
   return {
     'Content-Type': 'application/json',
-    ...authHeaders(credentials.accessToken),
+    ...authHeaders(auth),
   };
 }
 

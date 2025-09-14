@@ -7,8 +7,15 @@
  */
 package io.camunda.zeebe.gateway.rest.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.cfg.CoercionAction;
+import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.camunda.zeebe.gateway.protocol.rest.BasicStringFilterProperty;
 import io.camunda.zeebe.gateway.protocol.rest.BatchOperationItemStateFilterProperty;
 import io.camunda.zeebe.gateway.protocol.rest.BatchOperationStateFilterProperty;
@@ -19,7 +26,7 @@ import io.camunda.zeebe.gateway.protocol.rest.IntegerFilterProperty;
 import io.camunda.zeebe.gateway.protocol.rest.JobKindFilterProperty;
 import io.camunda.zeebe.gateway.protocol.rest.JobListenerEventTypeFilterProperty;
 import io.camunda.zeebe.gateway.protocol.rest.JobStateFilterProperty;
-import io.camunda.zeebe.gateway.protocol.rest.MessageSubscriptionTypeFilterProperty;
+import io.camunda.zeebe.gateway.protocol.rest.MessageSubscriptionStateFilterProperty;
 import io.camunda.zeebe.gateway.protocol.rest.ProcessInstanceStateFilterProperty;
 import io.camunda.zeebe.gateway.protocol.rest.StringFilterProperty;
 import io.camunda.zeebe.gateway.protocol.rest.UserTaskStateFilterProperty;
@@ -33,7 +40,7 @@ import io.camunda.zeebe.gateway.rest.deserializer.IntegerFilterPropertyDeseriali
 import io.camunda.zeebe.gateway.rest.deserializer.JobKindFilterPropertyDeserializer;
 import io.camunda.zeebe.gateway.rest.deserializer.JobListenerEventTypeFilterPropertyDeserializer;
 import io.camunda.zeebe.gateway.rest.deserializer.JobStateFilterPropertyDeserializer;
-import io.camunda.zeebe.gateway.rest.deserializer.MessageSubscriptionTypePropertyDeserializer;
+import io.camunda.zeebe.gateway.rest.deserializer.MessageSubscriptionStatePropertyDeserializer;
 import io.camunda.zeebe.gateway.rest.deserializer.ProcessInstanceStateFilterPropertyDeserializer;
 import io.camunda.zeebe.gateway.rest.deserializer.StringFilterPropertyDeserializer;
 import io.camunda.zeebe.gateway.rest.deserializer.UserTaskStateFilterPropertyDeserializer;
@@ -73,8 +80,8 @@ public class JacksonConfig {
         JobListenerEventTypeFilterProperty.class,
         new JobListenerEventTypeFilterPropertyDeserializer());
     module.addDeserializer(
-        MessageSubscriptionTypeFilterProperty.class,
-        new MessageSubscriptionTypePropertyDeserializer());
+        MessageSubscriptionStateFilterProperty.class,
+        new MessageSubscriptionStatePropertyDeserializer());
     module.addDeserializer(
         UserTaskStateFilterProperty.class, new UserTaskStateFilterPropertyDeserializer());
     return builder -> builder.modulesToInstall(modules -> modules.add(module));
@@ -83,6 +90,17 @@ public class JacksonConfig {
   @Bean("gatewayRestObjectMapper")
   public ObjectMapper objectMapper() {
     final var builder = Jackson2ObjectMapperBuilder.json();
+    builder
+        .featuresToDisable(MapperFeature.ALLOW_COERCION_OF_SCALARS)
+        .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+        .featuresToEnable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        .modulesToInstall(new JavaTimeModule(), new Jdk8Module())
+        .postConfigurer(
+            om -> {
+              // this also prevents coercion for string target types
+              om.coercionConfigDefaults()
+                  .setCoercion(CoercionInputShape.String, CoercionAction.Fail);
+            });
     gatewayRestObjectMapperCustomizer().accept(builder);
     return builder.build();
   }

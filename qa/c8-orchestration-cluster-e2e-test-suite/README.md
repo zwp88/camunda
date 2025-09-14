@@ -55,7 +55,7 @@ npx playwright install
 
 ### 3. Configure Environment Variables
 
-Create a `.env` file inside `c8-orchestration-cluster-e2e-test-suite`.  
+Create a `.env` file inside `c8-orchestration-cluster-e2e-test-suite`.
 This file configures test parameters, including application URLs and credentials.
 **Note**: Do not commit the `.env` file to GitHub to avoid exposing sensitive information.
 
@@ -68,6 +68,7 @@ CAMUNDA_AUTH_STRATEGY=BASIC
 CAMUNDA_BASIC_AUTH_USERNAME=demo
 CAMUNDA_BASIC_AUTH_PASSWORD=demo
 ZEEBE_REST_ADDRESS=http://localhost:8080
+CAMUNDA_TASKLIST_V2_MODE_ENABLED=true
 ```
 
 ---
@@ -78,6 +79,14 @@ For running tests locally, ensure you have an active instance. To set it up:
 
 1. Open a terminal in the `config` folder inside the `c8-orchestration-cluster-e2e-test-suite` directory.
 2. Run:
+
+**For Tasklist V2 mode:**
+
+```bash
+CAMUNDA_TASKLIST_V2_MODE_ENABLED=true DATABASE=elasticsearch docker compose up -d camunda
+```
+
+**For Tasklist V1 mode:**
 
 ```bash
 DATABASE=elasticsearch docker compose up -d camunda
@@ -138,7 +147,7 @@ This test suite follows the **Page Object Model (POM)** pattern for reusability 
 
 1. Go to [C8 Orchestration Cluster E2E Tests On Demand](https://github.com/camunda/camunda/actions/workflows/c8-orchestration-cluster-e2e-tests-on-demand.yml)
 2. Click **"Run workflow"**
-3. Choose the desired branch (e.g., `main`, `stable/8.6`, `stable/8.7`)
+3. Choose the desired branch (e.g., `main`, `stable/8.6`, `stable/8.7`, `stable/8.8`)
 4. Click **"Run workflow"**
 
 ---
@@ -200,5 +209,5 @@ If you want to suggest a new test case without submitting code:
 
 ---
 
-Thank you for using the C8 Orchestration Cluster End-to-End Test Suite.  
+Thank you for using the C8 Orchestration Cluster End-to-End Test Suite.
 Happy testing! 🚀 For help, reach out to the DRI.

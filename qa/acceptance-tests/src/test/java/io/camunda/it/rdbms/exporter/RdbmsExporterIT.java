@@ -31,6 +31,7 @@ import io.camunda.db.rdbms.RdbmsService;
 import io.camunda.exporter.rdbms.RdbmsExporterWrapper;
 import io.camunda.search.entities.FlowNodeInstanceEntity.FlowNodeState;
 import io.camunda.search.entities.IncidentEntity.IncidentState;
+import io.camunda.search.entities.MessageSubscriptionEntity.MessageSubscriptionState;
 import io.camunda.search.entities.ProcessDefinitionEntity;
 import io.camunda.search.entities.ProcessInstanceEntity.ProcessInstanceState;
 import io.camunda.search.entities.UserEntity;
@@ -59,6 +60,7 @@ import io.camunda.zeebe.protocol.record.value.GroupRecordValue;
 import io.camunda.zeebe.protocol.record.value.MappingRuleRecordValue;
 import io.camunda.zeebe.protocol.record.value.PermissionType;
 import io.camunda.zeebe.protocol.record.value.ProcessInstanceRecordValue;
+import io.camunda.zeebe.protocol.record.value.ProcessMessageSubscriptionRecordValue;
 import io.camunda.zeebe.protocol.record.value.RoleRecordValue;
 import io.camunda.zeebe.protocol.record.value.TenantRecordValue;
 import io.camunda.zeebe.protocol.record.value.UserRecordValue;
@@ -86,8 +88,9 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(
     properties = {
       "spring.liquibase.enabled=false",
-      "camunda.database.type=rdbms",
       "zeebe.broker.exporters.rdbms.args.queueSize=0",
+      "camunda.data.secondary-storage.type=rdbms",
+      "zeebe.broker.exporters.rdbms.args.maxQueueSize=0",
       "camunda.database.index-prefix=C8_"
     })
 class RdbmsExporterIT {
@@ -609,6 +612,60 @@ class RdbmsExporterIT {
     final var messageSubscription =
         rdbmsService.getMessageSubscriptionReader().findOne(messageSubscriptionRecord.getKey());
     assertThat(messageSubscription).isNotEmpty();
+  }
+
+  @Test
+  public void shouldUpdateDeletedMessageSubscription() {
+    // given
+    final var messageSubscriptionRecord =
+        ImmutableRecord.builder()
+            .from(RecordFixtures.FACTORY.generateRecord(ValueType.PROCESS_MESSAGE_SUBSCRIPTION))
+            .withIntent(ProcessMessageSubscriptionIntent.CREATED)
+            .withPosition(2L)
+            .withTimestamp(System.currentTimeMillis())
+            .build();
+
+    exporter.export(messageSubscriptionRecord);
+
+    // when
+    exporter.export(
+        ImmutableRecord.builder()
+            .from(messageSubscriptionRecord)
+            .withIntent(ProcessMessageSubscriptionIntent.DELETED)
+            .withPosition(3L)
+            .withTimestamp(System.currentTimeMillis())
+            .build());
+
+    // then
+    final var messageSubscription =
+        rdbmsService.getMessageSubscriptionReader().findOne(messageSubscriptionRecord.getKey());
+    assertThat(messageSubscription).isPresent();
+    assertThat(messageSubscription.get().messageSubscriptionState())
+        .isEqualTo(MessageSubscriptionState.DELETED);
+  }
+
+  @Test
+  public void shouldExportCorrelatedMessage() {
+    // given
+    final Record<ProcessMessageSubscriptionRecordValue> correlatedMessageRecord =
+        ImmutableRecord.<ProcessMessageSubscriptionRecordValue>builder()
+            .from(RecordFixtures.FACTORY.generateRecord(ValueType.PROCESS_MESSAGE_SUBSCRIPTION))
+            .withIntent(ProcessMessageSubscriptionIntent.CORRELATED)
+            .withPosition(2L)
+            .withTimestamp(System.currentTimeMillis())
+            .build();
+
+    // when
+    exporter.export(correlatedMessageRecord);
+
+    // then
+    final var correlatedMessage =
+        rdbmsService
+            .getCorrelatedMessageReader()
+            .findOne(
+                correlatedMessageRecord.getValue().getMessageKey(),
+                correlatedMessageRecord.getKey());
+    assertThat(correlatedMessage).isNotEmpty();
   }
 
   @Test

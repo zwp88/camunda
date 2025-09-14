@@ -77,29 +77,18 @@ zeebe:
       ioThreadCount: 2
 
 camunda:
-  database:
-    # Controls which database must be used, possible values: elasticsearch, opensearch
-    # This setting can also be overridden using the environment variable CAMUNDA_DATABASE_TYPE
-    type: elasticsearch
-    # Sets the name of the cluster, default name is "elasticsearch"
-    # This setting can also be overridden using the environment variable CAMUNDA_DATABASE_CLUSTERNAME
-    clusterName: elasticsearch
-    # Sets the database url.
-    # This setting can also be overridden using the environment variable CAMUNDA_DATABASE_URL
-    url: http://localhost:9200
+  # Unified Configuration
+  data:
+    secondary-storage:
+      type: 'elasticsearch'
+      elasticsearch:
+        url: 'http://localhost:9200'
+        cluster-name: 'elasticsearch'
+        index-prefix: ''
+  # ---
+
   # Operate configuration properties
   operate:
-    # Set operate username and password.
-    # If user with <username> does not exist it will be created.
-    # Default: demo/demo
-    #username:
-    #password:
-    # ELS instance to store Operate data
-    elasticsearch:
-      # Cluster name
-      clusterName: elasticsearch
-      # URL
-      url: http://localhost:9200
     # Zeebe instance
     zeebe:
       # Gateway address
@@ -108,23 +97,10 @@ camunda:
     zeebeElasticsearch:
       # Cluster name
       clusterName: elasticsearch
-      # URL
-      url: http://localhost:9200
       # Index prefix, configured in Zeebe Elasticsearch exporter
       prefix: zeebe-record
   # Tasklist configuration properties
   tasklist:
-    # Set Tasklist username and password.
-    # If user with <username> does not exist it will be created.
-    # Default: demo/demo
-    #username:
-    #password:
-    # ELS instance to store Tasklist data
-    elasticsearch:
-      # Cluster name
-      clusterName: elasticsearch
-      # URL
-      url: http://localhost:9200
     # Zeebe instance
     zeebe:
       # Gateway address
@@ -133,8 +109,6 @@ camunda:
     zeebeElasticsearch:
       # Cluster name
       clusterName: elasticsearch
-      # Url
-      url: http://localhost:9200
       # Index prefix, configured in Zeebe Elasticsearch exporter
       prefix: zeebe-record
   security:

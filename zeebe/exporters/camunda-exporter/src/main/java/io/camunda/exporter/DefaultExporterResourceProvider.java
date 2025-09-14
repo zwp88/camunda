@@ -17,13 +17,12 @@ import io.camunda.exporter.errorhandling.ErrorHandler;
 import io.camunda.exporter.errorhandling.ErrorHandlers;
 import io.camunda.exporter.handlers.AuthorizationCreatedUpdatedHandler;
 import io.camunda.exporter.handlers.AuthorizationDeletedHandler;
+import io.camunda.exporter.handlers.CorrelatedMessageFromMessageStartEventSubscriptionHandler;
+import io.camunda.exporter.handlers.CorrelatedMessageFromProcessMessageSubscriptionHandler;
 import io.camunda.exporter.handlers.DecisionEvaluationHandler;
 import io.camunda.exporter.handlers.DecisionHandler;
 import io.camunda.exporter.handlers.DecisionRequirementsHandler;
 import io.camunda.exporter.handlers.EmbeddedFormHandler;
-import io.camunda.exporter.handlers.EventFromIncidentHandler;
-import io.camunda.exporter.handlers.EventFromJobHandler;
-import io.camunda.exporter.handlers.EventFromProcessInstanceHandler;
 import io.camunda.exporter.handlers.EventFromProcessMessageSubscriptionHandler;
 import io.camunda.exporter.handlers.ExportHandler;
 import io.camunda.exporter.handlers.FlowNodeInstanceFromIncidentHandler;
@@ -97,6 +96,7 @@ import io.camunda.webapps.schema.descriptors.index.UsageMetricIndex;
 import io.camunda.webapps.schema.descriptors.index.UsageMetricTUIndex;
 import io.camunda.webapps.schema.descriptors.index.UserIndex;
 import io.camunda.webapps.schema.descriptors.template.BatchOperationTemplate;
+import io.camunda.webapps.schema.descriptors.template.CorrelatedMessageTemplate;
 import io.camunda.webapps.schema.descriptors.template.DecisionInstanceTemplate;
 import io.camunda.webapps.schema.descriptors.template.EventTemplate;
 import io.camunda.webapps.schema.descriptors.template.FlowNodeInstanceTemplate;
@@ -238,12 +238,6 @@ public class DefaultExporterResourceProvider implements ExporterResourceProvider
             new EmbeddedFormHandler(indexDescriptors.get(FormIndex.class).getFullQualifiedName()),
             new FormHandler(
                 indexDescriptors.get(FormIndex.class).getFullQualifiedName(), formCache),
-            new EventFromIncidentHandler(
-                indexDescriptors.get(EventTemplate.class).getFullQualifiedName()),
-            new EventFromJobHandler(
-                indexDescriptors.get(EventTemplate.class).getFullQualifiedName()),
-            new EventFromProcessInstanceHandler(
-                indexDescriptors.get(EventTemplate.class).getFullQualifiedName()),
             new EventFromProcessMessageSubscriptionHandler(
                 indexDescriptors.get(EventTemplate.class).getFullQualifiedName()),
             new UserTaskHandler(
@@ -315,7 +309,11 @@ public class DefaultExporterResourceProvider implements ExporterResourceProvider
                 batchOperationCache),
             new UsageMetricHandler(
                 indexDescriptors.get(UsageMetricIndex.class).getFullQualifiedName(),
-                indexDescriptors.get(UsageMetricTUIndex.class).getFullQualifiedName())));
+                indexDescriptors.get(UsageMetricTUIndex.class).getFullQualifiedName()),
+            new CorrelatedMessageFromMessageStartEventSubscriptionHandler(
+                indexDescriptors.get(CorrelatedMessageTemplate.class).getFullQualifiedName()),
+            new CorrelatedMessageFromProcessMessageSubscriptionHandler(
+                indexDescriptors.get(CorrelatedMessageTemplate.class).getFullQualifiedName())));
 
     if (configuration.getBatchOperation().isExportItemsOnCreation()) {
       // only add this handler when the items are exported on creation

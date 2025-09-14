@@ -46,7 +46,8 @@ import org.springframework.test.context.TestPropertySource;
 @DataJdbcTest
 @ContextConfiguration(classes = {RdbmsTestConfiguration.class, RdbmsConfiguration.class})
 @AutoConfigurationPackage
-@TestPropertySource(properties = {"spring.liquibase.enabled=false", "camunda.database.type=rdbms"})
+@TestPropertySource(
+    properties = {"spring.liquibase.enabled=false", "camunda.data.secondary-storage.type=rdbms"})
 public class GroupSpecificFilterIT {
 
   @Autowired private RdbmsService rdbmsService;
@@ -93,7 +94,11 @@ public class GroupSpecificFilterIT {
     createAndSaveGroup(
         rdbmsWriter,
         GroupFixtures.createRandomized(
-            b -> b.groupId("groupId").groupKey(1337L).name("Group 1337")));
+            b ->
+                b.groupId("groupId")
+                    .groupKey(1337L)
+                    .name("Group 1337")
+                    .description("This is group 1337")));
     GroupMemberFixtures.createAndSaveRandomGroupMember(
         rdbmsWriter,
         b -> b.groupId("groupId").entityId("entityId").entityType(EntityType.USER.name()));
@@ -142,6 +147,7 @@ public class GroupSpecificFilterIT {
     return List.of(
         new GroupFilter.Builder().groupKey(1337L).build(),
         new GroupFilter.Builder().name("Group 1337").build(),
+        new GroupFilter.Builder().description("This is group 1337").build(),
         new GroupFilter.Builder().memberId("entityId").childMemberType(EntityType.USER).build());
   }
 

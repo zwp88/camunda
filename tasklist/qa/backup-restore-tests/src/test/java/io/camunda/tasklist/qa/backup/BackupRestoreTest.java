@@ -7,19 +7,18 @@
  */
 package io.camunda.tasklist.qa.backup;
 
-import static io.camunda.tasklist.qa.util.ContainerVersionsUtil.ZEEBE_CURRENTVERSION_DOCKER_PROPERTY_NAME;
 import static io.camunda.tasklist.util.CollectionUtil.asMap;
 
+import io.camunda.client.CamundaClient;
+import io.camunda.client.CamundaClientBuilder;
 import io.camunda.tasklist.CommonUtils;
 import io.camunda.tasklist.exceptions.TasklistRuntimeException;
 import io.camunda.tasklist.qa.backup.generator.BackupRestoreDataGenerator;
-import io.camunda.tasklist.qa.util.ContainerVersionsUtil;
 import io.camunda.tasklist.qa.util.TestContainerUtil;
 import io.camunda.tasklist.qa.util.TestUtil;
 import io.camunda.webapps.backup.TakeBackupResponseDto;
-import io.camunda.zeebe.client.ZeebeClient;
-import io.camunda.zeebe.client.ZeebeClientBuilder;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
@@ -65,7 +64,7 @@ public class BackupRestoreTest {
 
   private GenericContainer tasklistContainer;
 
-  private ZeebeClient zeebeClient;
+  private CamundaClient camundaClient;
 
   private final TestContainerUtil testContainerUtil = new TestContainerUtil();
   private BackupRestoreTestContext testContext;
@@ -104,20 +103,23 @@ public class BackupRestoreTest {
       startElsApps();
     }
 
+    final String dbType = TestUtil.isOpenSearch() ? "opensearch" : "elasticsearch";
+
     tasklistContainer =
         testContainerUtil
             .createTasklistContainer(TASKLIST_TEST_DOCKER_IMAGE, VERSION, testContext)
             .withLogConsumer(new Slf4jLogConsumer(LOGGER))
-            .withEnv("CAMUNDA_TASKLIST_BACKUP_REPOSITORYNAME", REPOSITORY_NAME)
-            .withEnv(
-                "CAMUNDA_TASKLIST_DATABASE",
-                TestUtil.isOpenSearch() ? "opensearch" : "elasticsearch")
-            .withEnv("CAMUNDA_DATABASE_INDEXPREFIX", INDEX_PREFIX)
+            // Unified Configuration: DB type + compatibility
+            .withEnv("CAMUNDA_DATA_SECONDARYSTORAGE_TYPE", dbType)
+            .withEnv("CAMUNDA_TASKLIST_DATABASE", dbType)
+            // Unified Configuration: index prefix
             .withEnv(
                 TestUtil.isOpenSearch()
-                    ? "CAMUNDA_TASKLIST_OPENSEARCH_INDEXPREFIX"
-                    : "CAMUNDA_TASKLIST_ELASTICSEARCH_INDEXPREFIX",
+                    ? "CAMUNDA_DATA_SECONDARYSTORAGE_OPENSEARCH_INDEXPREFIX"
+                    : "CAMUNDA_DATA_SECONDARYSTORAGE_ELASTICSEARCH_INDEXPREFIX",
                 INDEX_PREFIX)
+            // ---
+            .withEnv("CAMUNDA_TASKLIST_BACKUP_REPOSITORYNAME", REPOSITORY_NAME)
             .withEnv("CAMUNDA_TASKLIST_CSRF_PREVENTION_ENABLED", "false")
             .withEnv("CAMUNDA_TASKLIST_ZEEBE_COMPATIBILITY_ENABLED", "true")
             .withEnv("CAMUNDA_TASKLIST_IMPORTERENABLED", "false")
@@ -139,7 +141,7 @@ public class BackupRestoreTest {
     createElsSnapshotRepository(testContext);
 
     testContainerUtil.startZeebe(IMAGE_REPO, VERSION, testContext);
-    createZeebeClient(testContext.getExternalZeebeContactPoint());
+    createCamundaClient(testContext.getZeebeGrpcAddress());
   }
 
   private OpenSearchClient createOsClient() {
@@ -162,9 +164,8 @@ public class BackupRestoreTest {
     testContext.setOsClient(osClient);
     createOsSnapshotRepository(testContext);
 
-    testContainerUtil.startZeebe(
-        ContainerVersionsUtil.readProperty(ZEEBE_CURRENTVERSION_DOCKER_PROPERTY_NAME), testContext);
-    createZeebeClient(testContext.getExternalZeebeContactPoint());
+    testContainerUtil.startZeebe(IMAGE_REPO, VERSION, testContext);
+    createCamundaClient(testContext.getZeebeGrpcAddress());
   }
 
   private void startTasklist() {
@@ -286,14 +287,11 @@ public class BackupRestoreTest {
                         .settings(s -> s.location(REPOSITORY_NAME))));
   }
 
-  private ZeebeClient createZeebeClient(final String zeebeGateway) {
-    final ZeebeClientBuilder builder =
-        ZeebeClient.newClientBuilder()
-            .gatewayAddress(zeebeGateway)
-            .defaultJobWorkerMaxJobsActive(5)
-            .usePlaintext();
-    zeebeClient = builder.build();
-    return zeebeClient;
+  private CamundaClient createCamundaClient(final URI grpcAddress) {
+    final CamundaClientBuilder builder =
+        CamundaClient.newClientBuilder().grpcAddress(grpcAddress).defaultJobWorkerMaxJobsActive(5);
+    camundaClient = builder.build();
+    return camundaClient;
   }
 }
 

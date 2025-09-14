@@ -15,7 +15,7 @@
   <select id="count" resultType="java.lang.Long">
     SELECT COUNT(*)
     FROM ${prefix}MESSAGE_SUBSCRIPTION
-    <include refid="io.camunda.db.rdbms.sql.MessageSubscriptionMapper.searchFilter" />
+    <include refid="io.camunda.db.rdbms.sql.MessageSubscriptionMapper.searchAndAuthFilter" />
   </select>
 
   <!-- default search statement for databases supporting LIMIT/OFFSET-->
@@ -29,7 +29,7 @@
     PROCESS_INSTANCE_KEY,
     FLOW_NODE_ID,
     FLOW_NODE_INSTANCE_KEY,
-    MESSAGE_SUBSCRIPTION_TYPE,
+    MESSAGE_SUBSCRIPTION_STATE,
     DATE_TIME,
     MESSAGE_NAME,
     CORRELATION_KEY,
@@ -38,15 +38,34 @@
     HISTORY_CLEANUP_DATE
     FROM ${prefix}MESSAGE_SUBSCRIPTION
 
-    <include refid="io.camunda.db.rdbms.sql.MessageSubscriptionMapper.searchFilter" />
+    <include refid="io.camunda.db.rdbms.sql.MessageSubscriptionMapper.searchAndAuthFilter" />
     ) t
     <include refid="io.camunda.db.rdbms.sql.Commons.keySetPageFilter" />
     <include refid="io.camunda.db.rdbms.sql.Commons.orderBy" />
     <include refid="io.camunda.db.rdbms.sql.Commons.paging" />
   </select>
 
+  <sql id="searchAndAuthFilter">
+    <where>
+      <if test="authorizedResourceIds != null and !authorizedResourceIds.isEmpty()">
+        AND PROCESS_DEFINITION_ID IN
+        <foreach collection="authorizedResourceIds" item="resourceId" open="(" separator=","
+          close=")">
+          #{resourceId}
+        </foreach>
+      </if>
+      <if test="authorizedTenantIds != null and !authorizedTenantIds.isEmpty()">
+        AND TENANT_ID IN
+        <foreach collection="authorizedTenantIds" item="tenantId" open="(" separator="," close=")">
+          #{tenantId}
+        </foreach>
+      </if>
+      <include refid="io.camunda.db.rdbms.sql.MessageSubscriptionMapper.searchFilter"/>
+
+    </where>
+  </sql>
+
   <sql id="searchFilter">
-    WHERE 1 = 1
     <!-- basic filter -->
     <if test="filter.messageSubscriptionKeyOperations != null and !filter.messageSubscriptionKeyOperations.isEmpty()">
       <foreach collection="filter.messageSubscriptionKeyOperations" item="operation">
@@ -78,9 +97,9 @@
         <include refid="io.camunda.db.rdbms.sql.Commons.operationCondition"/>
       </foreach>
     </if>
-    <if test="filter.messageSubscriptionTypeOperations != null and !filter.messageSubscriptionTypeOperations.isEmpty()">
-      <foreach collection="filter.messageSubscriptionTypeOperations" item="operation">
-        AND MESSAGE_SUBSCRIPTION_TYPE
+    <if test="filter.messageSubscriptionStateOperations != null and !filter.messageSubscriptionStateOperations.isEmpty()">
+      <foreach collection="filter.messageSubscriptionStateOperations" item="operation">
+        AND MESSAGE_SUBSCRIPTION_STATE
         <include refid="io.camunda.db.rdbms.sql.Commons.operationCondition"/>
       </foreach>
     </if>
@@ -118,7 +137,7 @@
     <result column="PROCESS_INSTANCE_KEY" property="processInstanceKey" javaType="java.lang.Long" />
     <result column="FLOW_NODE_ID" property="flowNodeId" javaType="java.lang.String" />
     <result column="FLOW_NODE_INSTANCE_KEY" property="flowNodeInstanceKey" javaType="java.lang.Long" />
-    <result column="MESSAGE_SUBSCRIPTION_TYPE" property="messageSubscriptionType" javaType="io.camunda.search.entities.MessageSubscriptionEntity$MessageSubscriptionType" />
+    <result column="MESSAGE_SUBSCRIPTION_STATE" property="messageSubscriptionState" javaType="io.camunda.search.entities.MessageSubscriptionEntity$MessageSubscriptionState" />
     <result column="DATE_TIME" property="dateTime" javaType="java.time.OffsetDateTime" />
     <result column="MESSAGE_NAME" property="messageName" javaType="java.lang.String" />
     <result column="CORRELATION_KEY" property="correlationKey" javaType="java.lang.String" />
@@ -135,7 +154,7 @@
                                                PROCESS_INSTANCE_KEY,
                                                FLOW_NODE_ID,
                                                FLOW_NODE_INSTANCE_KEY,
-                                               MESSAGE_SUBSCRIPTION_TYPE,
+                                               MESSAGE_SUBSCRIPTION_STATE,
                                                DATE_TIME,
                                                MESSAGE_NAME,
                                                CORRELATION_KEY,
@@ -149,7 +168,7 @@
             #{processInstanceKey},
             #{flowNodeId},
             #{flowNodeInstanceKey},
-            #{messageSubscriptionType},
+            #{messageSubscriptionState},
             #{dateTime, jdbcType=TIMESTAMP},
             #{messageName},
             #{correlationKey},
@@ -165,12 +184,12 @@
         PROCESS_INSTANCE_KEY = #{processInstanceKey},
         FLOW_NODE_ID = #{flowNodeId},
         FLOW_NODE_INSTANCE_KEY = #{flowNodeInstanceKey},
-        MESSAGE_SUBSCRIPTION_TYPE = #{messageSubscriptionType},
+        MESSAGE_SUBSCRIPTION_STATE = #{messageSubscriptionState},
         DATE_TIME = #{dateTime, jdbcType=TIMESTAMP},
         MESSAGE_NAME = #{messageName},
         CORRELATION_KEY = #{correlationKey},
         TENANT_ID = #{tenantId},
-        HISTORY_CLEANUP_DATE = #{historyCleanupDate, jdbcType=TIMESTAMP},
+        HISTORY_CLEANUP_DATE = #{historyCleanupDate, jdbcType=TIMESTAMP}
     WHERE MESSAGE_SUBSCRIPTION_KEY = #{messageSubscriptionKey}
   </update>
 

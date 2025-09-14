@@ -8,6 +8,7 @@
 
 import {Page, Locator, expect} from '@playwright/test';
 import {relativizePath, Paths} from 'utils/relativizePath';
+import {defaultAssertionOptions} from '../utils/constants';
 
 export class IdentityMappingRulesPage {
   private page: Page;
@@ -35,7 +36,7 @@ export class IdentityMappingRulesPage {
   readonly closeDeleteMappingRuleModal: Locator;
   readonly deleteMappingRuleModalCancelButton: Locator;
   readonly deleteMappingRuleModalDeleteButton: Locator;
-  readonly emptyState: Locator;
+  readonly emptyStateLocator: Locator;
   readonly usersNavItem: Locator;
   readonly selectMappingRuleRow: (name: string) => Locator;
   readonly mappingRuleCell: (name: string) => Locator;
@@ -148,7 +149,7 @@ export class IdentityMappingRulesPage {
         name: 'Delete mapping rule',
       });
 
-    this.emptyState = page.getByText('No mapping rules created yet');
+    this.emptyStateLocator = page.getByText('No mapping rules created yet');
     this.usersNavItem = page.getByText('Users');
   }
 
@@ -193,7 +194,12 @@ export class IdentityMappingRulesPage {
   }
 
   async deleteMappingRule(mappingRuleName: string) {
-    await this.deleteMappingRuleButton(mappingRuleName).click();
+    await expect(this.deleteMappingRuleButton(mappingRuleName)).toBeVisible({
+      timeout: 20000,
+    });
+    await expect(async () => {
+      await this.deleteMappingRuleButton(mappingRuleName).click();
+    }).toPass(defaultAssertionOptions);
     await expect(this.deleteMappingRuleModal).toBeVisible();
     await this.deleteMappingRuleModalDeleteButton.click();
     await expect(this.deleteMappingRuleModal).toBeHidden();

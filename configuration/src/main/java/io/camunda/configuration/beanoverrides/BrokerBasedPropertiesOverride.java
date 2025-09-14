@@ -15,18 +15,26 @@ import io.camunda.configuration.Filesystem;
 import io.camunda.configuration.Filter;
 import io.camunda.configuration.Gcs;
 import io.camunda.configuration.Interceptor;
+import io.camunda.configuration.InternalApi;
 import io.camunda.configuration.KeyStore;
+import io.camunda.configuration.Membership;
 import io.camunda.configuration.PrimaryStorage;
 import io.camunda.configuration.S3;
 import io.camunda.configuration.SasToken;
+import io.camunda.configuration.SecondaryStorage;
+import io.camunda.configuration.SecondaryStorage.SecondaryStorageType;
+import io.camunda.configuration.SecondaryStorageDatabase;
 import io.camunda.configuration.Ssl;
 import io.camunda.configuration.UnifiedConfiguration;
 import io.camunda.configuration.beans.BrokerBasedProperties;
 import io.camunda.configuration.beans.LegacyBrokerBasedProperties;
 import io.camunda.zeebe.backup.azure.SasTokenConfig;
 import io.camunda.zeebe.broker.system.configuration.ConfigManagerCfg;
+import io.camunda.zeebe.broker.system.configuration.ExporterCfg;
 import io.camunda.zeebe.broker.system.configuration.ExportingCfg;
+import io.camunda.zeebe.broker.system.configuration.MembershipCfg;
 import io.camunda.zeebe.broker.system.configuration.RaftCfg.FlushConfig;
+import io.camunda.zeebe.broker.system.configuration.SocketBindingCfg;
 import io.camunda.zeebe.broker.system.configuration.ThreadsCfg;
 import io.camunda.zeebe.broker.system.configuration.backup.AzureBackupStoreConfig;
 import io.camunda.zeebe.broker.system.configuration.backup.BackupStoreCfg;
@@ -42,7 +50,10 @@ import io.camunda.zeebe.gateway.impl.configuration.InterceptorCfg;
 import io.camunda.zeebe.gateway.impl.configuration.KeyStoreCfg;
 import io.camunda.zeebe.gateway.impl.configuration.NetworkCfg;
 import io.camunda.zeebe.gateway.impl.configuration.SecurityCfg;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -60,6 +71,8 @@ import org.springframework.context.annotation.Profile;
 public class BrokerBasedPropertiesOverride {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BrokerBasedPropertiesOverride.class);
+  private static final String CAMUNDA_EXPORTER_CLASS_NAME = "io.camunda.exporter.CamundaExporter";
+  private static final String CAMUNDA_EXPORTER_NAME = "camundaExporter";
 
   private final UnifiedConfiguration unifiedConfiguration;
   private final LegacyBrokerBasedProperties legacyBrokerBasedProperties;
@@ -92,7 +105,13 @@ public class BrokerBasedPropertiesOverride {
 
     populateFromGrpc(override);
 
+    // from camunda.data.* sections
     populateFromData(override);
+
+    populateCamundaExporter(override);
+
+    // TODO: Populate the rest of the bean using unifiedConfiguration
+    //  override.setSampleField(unifiedConfiguration.getSampleField());
 
     return override;
   }
@@ -167,6 +186,7 @@ public class BrokerBasedPropertiesOverride {
     override.getCluster().setReplicationFactor(cluster.getReplicationFactor());
     override.getCluster().setClusterSize(cluster.getSize());
 
+    populateFromMembership(override);
     populateFromRaftProperties(override);
     populateFromClusterMetadata(override);
     populateFromClusterNetwork(override);
@@ -187,6 +207,26 @@ public class BrokerBasedPropertiesOverride {
     longPollingCfg.setMinEmptyResponses(longPolling.getMinEmptyResponses());
   }
 
+  private void populateFromMembership(final BrokerBasedProperties override) {
+    final Membership membership =
+        unifiedConfiguration
+            .getCamunda()
+            .getCluster()
+            .getMembership()
+            .withBrokerMembershipProperties();
+    final MembershipCfg membershipCfg = override.getCluster().getMembership();
+    membershipCfg.setBroadcastUpdates(membership.isBroadcastUpdates());
+    membershipCfg.setBroadcastDisputes(membership.isBroadcastDisputes());
+    membershipCfg.setNotifySuspect(membership.isNotifySuspect());
+    membershipCfg.setGossipInterval(membership.getGossipInterval());
+    membershipCfg.setGossipFanout(membership.getGossipFanout());
+    membershipCfg.setProbeInterval(membership.getProbeInterval());
+    membershipCfg.setProbeTimeout(membership.getProbeTimeout());
+    membershipCfg.setSuspectProbes(membership.getSuspectProbes());
+    membershipCfg.setFailureTimeout(membership.getFailureTimeout());
+    membershipCfg.setSyncInterval(membership.getSyncInterval());
+  }
+
   private void populateFromRaftProperties(final BrokerBasedProperties override) {
     final var raft = unifiedConfiguration.getCamunda().getCluster().getRaft();
     override.getCluster().setHeartbeatInterval(raft.getHeartbeatInterval());
@@ -196,6 +236,35 @@ public class BrokerBasedPropertiesOverride {
     // Set flush configuration
     final var flushConfig = new FlushConfig(raft.isFlushEnabled(), raft.getFlushDelay());
     override.getCluster().getRaft().setFlush(flushConfig);
+
+    override.getExperimental().setMaxAppendsPerFollower(raft.getMaxAppendsPerFollower());
+    override.getExperimental().setMaxAppendBatchSize(raft.getMaxAppendBatchSize());
+    override.getExperimental().getRaft().setRequestTimeout(raft.getRequestTimeout());
+    override
+        .getExperimental()
+        .getRaft()
+        .setSnapshotRequestTimeout(raft.getSnapshotRequestTimeout());
+    override.getExperimental().getRaft().setSnapshotChunkSize(raft.getSnapshotChunkSize());
+    override
+        .getExperimental()
+        .getRaft()
+        .setConfigurationChangeTimeout(raft.getConfigurationChangeTimeout());
+    override
+        .getExperimental()
+        .getRaft()
+        .setMaxQuorumResponseTimeout(raft.getMaxQuorumResponseTimeout());
+    override
+        .getExperimental()
+        .getRaft()
+        .setMinStepDownFailureCount(raft.getMinStepDownFailureCount());
+    override
+        .getExperimental()
+        .getRaft()
+        .setPreferSnapshotReplicationThreshold(raft.getPreferSnapshotReplicationThreshold());
+    override
+        .getExperimental()
+        .getRaft()
+        .setPreallocateSegmentFiles(raft.isPreallocateSegmentFiles());
   }
 
   private void populateFromClusterMetadata(final BrokerBasedProperties override) {
@@ -225,6 +294,26 @@ public class BrokerBasedPropertiesOverride {
     final var ucNetwork =
         unifiedConfiguration.getCamunda().getCluster().getNetwork().withBrokerNetworkProperties();
     override.getGateway().getNetwork().setMaxMessageSize(ucNetwork.getMaxMessageSize());
+
+    populateFromInternalApi(override);
+  }
+
+  private void populateFromInternalApi(final BrokerBasedProperties override) {
+    final InternalApi internalApi =
+        unifiedConfiguration
+            .getCamunda()
+            .getCluster()
+            .getNetwork()
+            .getInternalApi()
+            .withBrokerInternalApiProperties();
+
+    final SocketBindingCfg socketBindingCfg = override.getNetwork().getInternalApi();
+
+    socketBindingCfg.setHost(internalApi.getHost());
+    socketBindingCfg.setPort(internalApi.getPort());
+    socketBindingCfg.setAdvertisedHost(internalApi.getAdvertisedHost());
+    Optional.ofNullable(internalApi.getAdvertisedPort())
+        .ifPresent(socketBindingCfg::setAdvertisedPort);
   }
 
   private void populateFromRestFilters(final BrokerBasedProperties override) {
@@ -404,5 +493,71 @@ public class BrokerBasedPropertiesOverride {
     filesystemBackupStoreConfig.setBasePath(filesystem.getBasePath());
 
     override.getData().getBackup().setFilesystem(filesystemBackupStoreConfig);
+  }
+
+  private void populateCamundaExporter(final BrokerBasedProperties override) {
+    final SecondaryStorage secondaryStorage =
+        unifiedConfiguration.getCamunda().getData().getSecondaryStorage();
+
+    final SecondaryStorageDatabase database;
+    if (SecondaryStorageType.elasticsearch == secondaryStorage.getType()) {
+      database =
+          unifiedConfiguration.getCamunda().getData().getSecondaryStorage().getElasticsearch();
+    } else if (SecondaryStorageType.opensearch == secondaryStorage.getType()) {
+      database = unifiedConfiguration.getCamunda().getData().getSecondaryStorage().getOpensearch();
+    } else {
+      // RDBMS and NONE are not supported.
+      return;
+    }
+
+    /* Load exporter config map */
+
+    final List<ExporterCfg> exporters =
+        override.getExporters().values().stream()
+            .filter(e -> e.getClassName().equals(CAMUNDA_EXPORTER_CLASS_NAME))
+            .toList();
+
+    final ExporterCfg exporter;
+    if (exporters.isEmpty()) {
+      exporter = new ExporterCfg();
+      exporter.setClassName(CAMUNDA_EXPORTER_CLASS_NAME);
+      exporter.setArgs(new LinkedHashMap<>());
+      override.getExporters().put(CAMUNDA_EXPORTER_NAME, exporter);
+    } else {
+      exporter = exporters.getFirst();
+    }
+
+    /* Override config map values */
+
+    // https://github.com/camunda/camunda/issues/37880
+    // it is possible to have an exporter with no args defined
+    final Map<String, Object> args =
+        exporter.getArgs() == null ? new LinkedHashMap<>() : exporter.getArgs();
+    setArg(args, "connect.type", secondaryStorage.getType().name());
+    setArg(args, "connect.url", database.getUrl());
+    setArg(args, "connect.clusterName", database.getClusterName());
+
+    // Add security configuration mapping
+    if (database.getSecurity() != null) {
+      setArg(args, "connect.security.enabled", database.getSecurity().isEnabled());
+      setArg(args, "connect.security.certificatePath", database.getSecurity().getCertificatePath());
+      setArg(args, "connect.security.verifyHostname", database.getSecurity().isVerifyHostname());
+      setArg(args, "connect.security.selfSigned", database.getSecurity().isSelfSigned());
+    }
+    setArg(args, "connect.username", database.getUsername());
+    setArg(args, "connect.password", database.getPassword());
+
+    setArg(args, "connect.indexPrefix", database.getIndexPrefix());
+    setArg(args, "index.numberOfShards", database.getNumberOfShards());
+  }
+
+  @SuppressWarnings("unchecked")
+  private void setArg(final Map<String, Object> args, final String breadcrumb, final Object value) {
+    final String[] keys = breadcrumb.split("\\.");
+    Map<String, Object> cursor = args;
+    for (int i = 0; i < keys.length - 1; i++) {
+      cursor = (Map<String, Object>) cursor.computeIfAbsent(keys[i], k -> new LinkedHashMap<>());
+    }
+    cursor.put(keys[keys.length - 1], value);
   }
 }

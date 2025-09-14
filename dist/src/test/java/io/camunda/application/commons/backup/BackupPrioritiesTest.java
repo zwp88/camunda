@@ -118,14 +118,14 @@ class BackupPrioritiesTest {
             "operate-import-position-8.3.0_", "tasklist-import-position-8.2.0_");
     // PRIO 2
     assertThat(indices.get(1).allIndices())
-        .containsExactlyInAnyOrder("operate-list-view-8.3.0_", "tasklist-task-8.5.0_");
+        .containsExactlyInAnyOrder("operate-list-view-8.3.0_", "tasklist-task-8.8.0_");
     // PRIO 2 TEMPLATES
     assertThat(indices.get(2).allIndices())
         .containsExactlyInAnyOrder(
             "operate-list-view-8.3.0_*",
             "-operate-list-view-8.3.0_",
-            "tasklist-task-8.5.0_*",
-            "-tasklist-task-8.5.0_");
+            "tasklist-task-8.8.0_*",
+            "-tasklist-task-8.8.0_");
     // PRIO 3
     assertThat(indices.get(3).allIndices())
         .containsExactlyInAnyOrder("operate-batch-operation-1.0.0_", "operate-operation-8.4.1_");
@@ -143,7 +143,8 @@ class BackupPrioritiesTest {
             "operate-sequence-flow-8.3.0_",
             "operate-variable-8.3.0_",
             "tasklist-draft-task-variable-8.3.0_",
-            "tasklist-task-variable-8.3.0_");
+            "tasklist-task-variable-8.3.0_",
+            "camunda-correlated-message-8.8.0_");
 
     // PRIO 4 TEMPLATES
     assertThat(indices.get(5).allIndices())
@@ -169,7 +170,9 @@ class BackupPrioritiesTest {
             "-tasklist-draft-task-variable-8.3.0_",
             "tasklist-draft-task-variable-8.3.0_*",
             "-tasklist-task-variable-8.3.0_",
-            "tasklist-task-variable-8.3.0_*");
+            "tasklist-task-variable-8.3.0_*",
+            "-camunda-correlated-message-8.8.0_",
+            "camunda-correlated-message-8.8.0_*");
 
     // PRIO 5
     assertThat(indices.get(6).allIndices())

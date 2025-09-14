@@ -5,7 +5,7 @@
   <parent>
     <groupId>io.camunda</groupId>
     <artifactId>zeebe-parent</artifactId>
-    <version>8.8.0-SNAPSHOT</version>
+    <version>8.9.0-SNAPSHOT</version>
     <relativePath>../parent/pom.xml</relativePath>
   </parent>
 
@@ -16,6 +16,12 @@
   <name>Zeebe Distribution</name>
 
   <dependencies>
+
+    <dependency>
+      <groupId>io.camunda</groupId>
+      <artifactId>zeebe-bpmn-model</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>io.camunda</groupId>
@@ -149,32 +155,6 @@
           <artifactId>commons-logging</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>io.camunda.migration</groupId>
-      <artifactId>migration-api</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.camunda.migration</groupId>
-      <artifactId>migration-commons</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.camunda.migration</groupId>
-      <artifactId>process-migration</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.camunda.migration</groupId>
-      <artifactId>identity-migration</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.camunda.migration</groupId>
-      <artifactId>usage-metric-migration</artifactId>
     </dependency>
 
     <dependency>
@@ -767,12 +747,6 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>com.github.docker-java</groupId>
-      <artifactId>docker-java-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
 
   <build>
@@ -841,22 +815,6 @@
               <id>camunda</id>
               <mainClass>io.camunda.application.StandaloneCamunda</mainClass>
             </program>
-            <program>
-              <id>prefix-migration</id>
-              <mainClass>io.camunda.application.StandalonePrefixMigration</mainClass>
-            </program>
-            <program>
-              <id>identity-migration</id>
-              <mainClass>io.camunda.application.StandaloneIdentityMigration</mainClass>
-            </program>
-            <program>
-              <id>process-migration</id>
-              <mainClass>io.camunda.application.StandaloneProcessMigration</mainClass>
-            </program>
-            <program>
-              <id>usage-metric-migration</id>
-              <mainClass>io.camunda.application.StandaloneUsageMetricMigration</mainClass>
-            </program>
           </programs>
           <repositoryLayout>flat</repositoryLayout>
           <repositoryName>lib</repositoryName>
@@ -906,6 +864,7 @@
             <ignoredNonTestScopedDependency>com.fasterxml.jackson.core:jackson-databind</ignoredNonTestScopedDependency>
             <ignoredNonTestScopedDependency>org.apache.httpcomponents.client5:httpclient5</ignoredNonTestScopedDependency>
             <ignoredNonTestScopedDependency>org.apache.httpcomponents.core5:httpcore5</ignoredNonTestScopedDependency>
+            <ignoredNonTestScopedDependency>io.camunda:zeebe-bpmn-model</ignoredNonTestScopedDependency>
           </ignoredNonTestScopedDependencies>
           <!-- dependencies only packaged but not explicitly used -->
           <usedDependencies>
@@ -938,9 +897,6 @@
           </usedDependencies>
           <ignoredUnusedDeclaredDependencies>
             <dep>com.nimbusds:oauth2-oidc-sdk</dep>
-            <dep>io.camunda.migration:identity-migration</dep>
-            <dep>io.camunda.migration:process-migration</dep>
-            <dep>io.camunda.migration:usage-metric-migration</dep>
             <dep>io.camunda.optimize:optimize-backend</dep>
             <dep>io.camunda.optimize:optimize-webjar</dep>
           </ignoredUnusedDeclaredDependencies>

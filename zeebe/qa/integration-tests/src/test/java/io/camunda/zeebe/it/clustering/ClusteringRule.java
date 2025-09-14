@@ -34,6 +34,7 @@ import io.camunda.client.CamundaClient;
 import io.camunda.client.CamundaClientBuilder;
 import io.camunda.client.api.response.BrokerInfo;
 import io.camunda.client.api.response.Topology;
+import io.camunda.client.impl.util.AddressUtil;
 import io.camunda.configuration.beans.BrokerBasedProperties;
 import io.camunda.configuration.beans.GatewayBasedProperties;
 import io.camunda.security.configuration.SecurityConfigurations;
@@ -172,7 +173,7 @@ public class ClusteringRule extends ExternalResource {
         clusterSize,
         configurator,
         gatewayCfg -> {},
-        CamundaClientBuilder::usePlaintext);
+        builder -> {});
   }
 
   public ClusteringRule(
@@ -187,7 +188,7 @@ public class ClusteringRule extends ExternalResource {
         clusterSize,
         brokerConfigurator,
         gatewayConfigurator,
-        CamundaClientBuilder::usePlaintext);
+        builder -> {});
   }
 
   public ClusteringRule(
@@ -543,11 +544,12 @@ public class ClusteringRule extends ExternalResource {
   }
 
   private CamundaClient createClient() {
-    final String contactPoint =
-        NetUtil.toSocketAddressString(
-            gatewayResource.gateway.getGatewayCfg().getNetwork().toSocketAddress());
     final CamundaClientBuilder camundaClientBuilder =
-        CamundaClient.newClientBuilder().gatewayAddress(contactPoint).preferRestOverGrpc(false);
+        CamundaClient.newClientBuilder()
+            .grpcAddress(
+                AddressUtil.composeGrpcAddress(
+                    gatewayResource.gateway.getGatewayCfg().getNetwork().toSocketAddress(), true))
+            .preferRestOverGrpc(false);
 
     clientConfigurator.accept(camundaClientBuilder);
 
@@ -721,21 +723,22 @@ public class ClusteringRule extends ExternalResource {
             .getRaftPartition(partitionId)
             .getServer();
 
-    Awaitility.await("Promote request is successful")
-        .pollInterval(Duration.ofMillis(500))
-        .timeout(Duration.ofMinutes(1))
-        .untilAsserted(
-            () ->
-                assertThat(serverOfExpectedLeader.promote())
-                    .succeedsWithin(Duration.ofSeconds(15)));
-
     Awaitility.await("New leader of partition %s is %s".formatted(partitionId, expectedLeaderId))
         .pollInterval(Duration.ofMillis(500))
         .atMost(Duration.ofMinutes(1))
         .ignoreExceptions()
-        .until(
-            () -> getLeaderForPartition(partitionId),
-            (leader) -> leader.getNodeId() == expectedLeaderId);
+        .untilAsserted(
+            () -> {
+              assertThat(serverOfExpectedLeader.promote())
+                  .describedAs("Promote request is successful")
+                  .succeedsWithin(Duration.ofSeconds(15));
+              final int currentLeaderId = getLeaderForPartition(partitionId).getNodeId();
+              assertThat(currentLeaderId)
+                  .withFailMessage(
+                      "Expected the leader of partition %d to be %d, but was %d",
+                      partitionId, expectedLeaderId, currentLeaderId)
+                  .isEqualTo(expectedLeaderId);
+            });
   }
 
   public void waitForTopology(final Consumer<TopologyAssert> assertions) {
@@ -850,11 +853,15 @@ public class ClusteringRule extends ExternalResource {
     var currentSegments = 0;
     var writtenEntries = 0;
     while (currentSegments < minimumSegmentCount || writtenEntries < minimumWrittenEntries) {
-      client.newPublishMessageCommand().messageName("msg").correlationKey("key").send().join();
+      publishMessage();
       currentSegments =
           brokers.stream().map(this::getSegmentsCount).min(Integer::compareTo).orElse(0);
       writtenEntries += 1;
     }
+  }
+
+  public void publishMessage() {
+    client.newPublishMessageCommand().messageName("msg").correlationKey("key").send().join();
   }
 
   /**

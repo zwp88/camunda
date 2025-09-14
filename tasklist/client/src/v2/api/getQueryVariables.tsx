@@ -6,7 +6,7 @@
  * except in compliance with the Camunda License 1.0.
  */
 
-import {type QueryUserTasksRequestBody} from '@vzeta/camunda-api-zod-schemas/8.8';
+import {type QueryUserTasksRequestBody} from '@camunda/camunda-api-zod-schemas/8.8';
 import {getStateLocally} from 'common/local-storage';
 import {
   numberFiltersSchema,
@@ -125,6 +125,7 @@ function convertFiltersToQueryVariables(
     dueDateTo,
     followUpDateFrom,
     followUpDateTo,
+    assigned,
     ...restFilters
   } = filters;
   const numberFilters =
@@ -167,6 +168,12 @@ function convertFiltersToQueryVariables(
     updatedFilters.followUpDate = {
       $gte: followUpDateFrom.toISOString(),
       $lte: followUpDateTo.toISOString(),
+    };
+  }
+
+  if (assigned !== undefined && !assigned) {
+    updatedFilters.assignee = {
+      $exists: false,
     };
   }
 

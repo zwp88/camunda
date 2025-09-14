@@ -7,12 +7,14 @@
  */
 package io.camunda.application.commons.rdbms;
 
-import io.camunda.application.commons.condition.ConditionalOnSecondaryStorageType;
+import io.camunda.configuration.SecondaryStorage.SecondaryStorageType;
+import io.camunda.configuration.conditions.ConditionalOnSecondaryStorageType;
 import io.camunda.db.rdbms.RdbmsService;
 import io.camunda.db.rdbms.config.VendorDatabaseProperties;
 import io.camunda.db.rdbms.read.service.AuthorizationDbReader;
 import io.camunda.db.rdbms.read.service.BatchOperationDbReader;
 import io.camunda.db.rdbms.read.service.BatchOperationItemDbReader;
+import io.camunda.db.rdbms.read.service.CorrelatedMessageDbReader;
 import io.camunda.db.rdbms.read.service.DecisionDefinitionDbReader;
 import io.camunda.db.rdbms.read.service.DecisionInstanceDbReader;
 import io.camunda.db.rdbms.read.service.DecisionRequirementsDbReader;
@@ -40,6 +42,7 @@ import io.camunda.db.rdbms.read.service.UserTaskDbReader;
 import io.camunda.db.rdbms.read.service.VariableDbReader;
 import io.camunda.db.rdbms.sql.AuthorizationMapper;
 import io.camunda.db.rdbms.sql.BatchOperationMapper;
+import io.camunda.db.rdbms.sql.CorrelatedMessageMapper;
 import io.camunda.db.rdbms.sql.DecisionDefinitionMapper;
 import io.camunda.db.rdbms.sql.DecisionInstanceMapper;
 import io.camunda.db.rdbms.sql.DecisionRequirementsMapper;
@@ -64,7 +67,6 @@ import io.camunda.db.rdbms.sql.UserTaskMapper;
 import io.camunda.db.rdbms.sql.VariableMapper;
 import io.camunda.db.rdbms.write.RdbmsWriterFactory;
 import io.camunda.db.rdbms.write.RdbmsWriterMetrics;
-import io.camunda.search.connect.configuration.DatabaseConfig;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.context.annotation.Bean;
@@ -72,7 +74,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnSecondaryStorageType(DatabaseConfig.RDBMS)
+@ConditionalOnSecondaryStorageType(SecondaryStorageType.rdbms)
 @Import(MyBatisConfiguration.class)
 public class RdbmsConfiguration {
 
@@ -155,8 +157,8 @@ public class RdbmsConfiguration {
   }
 
   @Bean
-  public TenantMemberDbReader tenantMemberReader() {
-    return new TenantMemberDbReader();
+  public TenantMemberDbReader tenantMemberReader(final TenantMapper tenantMapper) {
+    return new TenantMemberDbReader(tenantMapper);
   }
 
   @Bean
@@ -233,6 +235,12 @@ public class RdbmsConfiguration {
   }
 
   @Bean
+  public CorrelatedMessageDbReader correlatedMessageReader(
+      final CorrelatedMessageMapper correlatedMessageMapper) {
+    return new CorrelatedMessageDbReader(correlatedMessageMapper);
+  }
+
+  @Bean
   public RdbmsWriterFactory rdbmsWriterFactory(
       final SqlSessionFactory sqlSessionFactory,
       final ExporterPositionMapper exporterPositionMapper,
@@ -251,7 +259,8 @@ public class RdbmsConfiguration {
       final UsageMetricMapper usageMetricMapper,
       final UsageMetricTUMapper usageMetricTUMapper,
       final BatchOperationMapper batchOperationMapper,
-      final MessageSubscriptionMapper messageSubscriptionMapper) {
+      final MessageSubscriptionMapper messageSubscriptionMapper,
+      final CorrelatedMessageMapper correlatedMessageMapper) {
     return new RdbmsWriterFactory(
         sqlSessionFactory,
         exporterPositionMapper,
@@ -270,7 +279,8 @@ public class RdbmsConfiguration {
         usageMetricMapper,
         usageMetricTUMapper,
         batchOperationMapper,
-        messageSubscriptionMapper);
+        messageSubscriptionMapper,
+        correlatedMessageMapper);
   }
 
   @Bean
@@ -288,6 +298,7 @@ public class RdbmsConfiguration {
       final ProcessInstanceDbReader processInstanceReader,
       final RoleDbReader roleReader,
       final TenantDbReader tenantReader,
+      final TenantMemberDbReader tenantMemberReader,
       final UserDbReader userReader,
       final UserTaskDbReader userTaskReader,
       final FormDbReader formReader,
@@ -298,7 +309,8 @@ public class RdbmsConfiguration {
       final JobDbReader jobReader,
       final UsageMetricsDbReader usageMetricReader,
       final UsageMetricTUDbReader usageMetricTUDbReader,
-      final MessageSubscriptionDbReader messageSubscriptionReader) {
+      final MessageSubscriptionDbReader messageSubscriptionReader,
+      final CorrelatedMessageDbReader correlatedMessageReader) {
     return new RdbmsService(
         rdbmsWriterFactory,
         authorizationReader,
@@ -313,6 +325,7 @@ public class RdbmsConfiguration {
         variableReader,
         roleReader,
         tenantReader,
+        tenantMemberReader,
         userReader,
         userTaskReader,
         formReader,
@@ -323,6 +336,7 @@ public class RdbmsConfiguration {
         jobReader,
         usageMetricReader,
         usageMetricTUDbReader,
-        messageSubscriptionReader);
+        messageSubscriptionReader,
+        correlatedMessageReader);
   }
 }

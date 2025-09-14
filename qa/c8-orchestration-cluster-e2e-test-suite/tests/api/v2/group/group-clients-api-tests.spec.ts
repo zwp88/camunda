@@ -26,14 +26,26 @@ import {
   defaultAssertionOptions,
   generateUniqueId,
 } from '../../../../utils/constants';
+import {cleanupGroups} from '../../../../utils/groupsCleanup';
 
 test.describe.parallel('Groups Clients API Tests', () => {
   const state: Record<string, unknown> = {};
+  state['createdIds'] = [];
 
   test.beforeAll(async ({request}) => {
     await createGroupAndStoreResponseFields(request, 3, state);
     await assignClientToGroup(request, 1, state['groupId2'] as string, state);
     await assignClientToGroup(request, 1, state['groupId3'] as string, state);
+
+    (state['createdIds'] as string[]).push(
+      ...(Object.values(state).filter(
+        (value) => typeof value === 'string' && value.startsWith('group'),
+      ) as string[]),
+    );
+  });
+
+  test.afterAll(async ({request}) => {
+    await cleanupGroups(request, state['createdIds'] as string[]);
   });
 
   test('Assign Client To Group', async ({request}) => {

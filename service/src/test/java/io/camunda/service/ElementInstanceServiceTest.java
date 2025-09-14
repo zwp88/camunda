@@ -52,7 +52,8 @@ public final class ElementInstanceServiceTest {
             mock(SecurityContextProvider.class),
             client,
             processCache,
-            null);
+            null,
+            mock(ApiServicesExecutorProvider.class));
 
     when(client.withSecurityContext(any())).thenReturn(client);
     when(processCache.getCacheItems(any())).thenReturn(ProcessCacheResult.EMPTY);
@@ -85,7 +86,10 @@ public final class ElementInstanceServiceTest {
       when(processCache.getCacheItems(Set.of(entity.processDefinitionKey())))
           .thenReturn(
               ProcessCacheResult.of(
-                  entity.processDefinitionKey(), entity.flowNodeId(), "cached name"));
+                  entity.processDefinitionKey(),
+                  "ProcessName",
+                  entity.flowNodeId(),
+                  "cached name"));
 
       final var searchQueryResult = services.search(FlowNodeInstanceQuery.of(q -> q));
 
@@ -155,7 +159,8 @@ public final class ElementInstanceServiceTest {
 
       when(client.getFlowNodeInstance(any(Long.class))).thenReturn(entity);
       when(processCache.getCacheItem(entity.processDefinitionKey()))
-          .thenReturn(new ProcessCacheItem(Map.of(entity.flowNodeId(), "cached name")));
+          .thenReturn(
+              new ProcessCacheItem("ProcessName", Map.of(entity.flowNodeId(), "cached name")));
 
       // when
       final var foundEntity = services.getByKey(entity.flowNodeInstanceKey());
@@ -174,7 +179,7 @@ public final class ElementInstanceServiceTest {
 
       when(client.getFlowNodeInstance(any(Long.class))).thenReturn(entity);
       when(processCache.getCacheItem(entity.processDefinitionKey()))
-          .thenReturn(new ProcessCacheItem(Map.of("unknown-id", "cached name")));
+          .thenReturn(new ProcessCacheItem("ProcessName", Map.of("unknown-id", "cached name")));
 
       // when
       final var foundEntity = services.getByKey(entity.flowNodeInstanceKey());

@@ -6,7 +6,7 @@
   <parent>
     <groupId>io.camunda</groupId>
     <artifactId>zeebe-bom</artifactId>
-    <version>8.8.0-SNAPSHOT</version>
+    <version>8.9.0-SNAPSHOT</version>
     <relativePath>../bom/pom.xml</relativePath>
   </parent>
 
@@ -64,7 +64,7 @@
     <version.httpclient5>5.5</version.httpclient5>
     <version.httpcore5>5.3.4</version.httpcore5>
     <version.httpcomponents>4.4.16</version.httpcomponents>
-    <version.identity>8.8.0-alpha6</version.identity>
+    <version.identity>8.8.0-alpha8</version.identity>
     <version.instancio>5.5.0</version.instancio>
     <version.surefire>3.5.3</version.surefire>
     <version.jackson>2.19.2</version.jackson>
@@ -75,7 +75,7 @@
     <version.mockito>5.18.0</version.mockito>
     <version.model>7.7.0</version.model>
     <version.msgpack>0.9.10</version.msgpack>
-    <version.netty>4.1.124.Final</version.netty>
+    <version.netty>4.1.127.Final</version.netty>
     <version.objenesis>3.4</version.objenesis>
     <version.opensearch>2.17.0</version.opensearch>
     <version.opensearch-java>2.19.0</version.opensearch-java>
@@ -83,7 +83,7 @@
     <version.prometheus>0.16.0</version.prometheus>
     <version.protobuf>4.31.1</version.protobuf>
     <version.protobuf-common>2.59.2</version.protobuf-common>
-    <version.micrometer>1.15.2</version.micrometer>
+    <version.micrometer>1.15.3</version.micrometer>
     <version.rocksdbjni>10.2.1</version.rocksdbjni>
     <version.sbe>1.35.6</version.sbe>
     <version.scala>2.13.16</version.scala>
@@ -98,7 +98,7 @@
     <version.testcontainer-mariadb>1.20.0</version.testcontainer-mariadb>
     <version.postgressql-testcontainer>1.20.1</version.postgressql-testcontainer>
     <version.netflix.concurrency>0.5.3</version.netflix.concurrency>
-    <version.zeebe-test-container>3.6.5</version.zeebe-test-container>
+    <version.zeebe-test-container>3.6.7</version.zeebe-test-container>
     <version.feel-scala>1.19.3</version.feel-scala>
     <version.dmn-scala>1.10.1</version.dmn-scala>
     <version.rest-assured>5.5.5</version.rest-assured>
@@ -127,6 +127,7 @@
     <version.archunit>1.4.1</version.archunit>
     <version.easy-random>5.0.0</version.easy-random>
     <version.jcip>1.0</version.jcip>
+    <version.jnr-ffi>2.2.17</version.jnr-ffi>
     <version.jnr-posix>3.1.20</version.jnr-posix>
     <version.zpt>8.7.9</version.zpt>
     <version.feign>13.6</version.feign>
@@ -927,7 +928,7 @@
 
       <dependency>
         <groupId>io.camunda</groupId>
-        <artifactId>spring-boot-starter-camunda-sdk</artifactId>
+        <artifactId>camunda-spring-boot-starter</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -1731,6 +1732,11 @@
 
       <dependency>
         <groupId>com.github.jnr</groupId>
+        <artifactId>jnr-ffi</artifactId>
+        <version>${version.jnr-ffi}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.jnr</groupId>
         <artifactId>jnr-posix</artifactId>
         <version>${version.jnr-posix}</version>
       </dependency>
@@ -2164,44 +2170,6 @@
         <version>${version.caffeine}</version>
       </dependency>
 
-      <!-- Migration Module -->
-      <dependency>
-        <groupId>io.camunda.migration</groupId>
-        <artifactId>migration-api</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.camunda.migration</groupId>
-        <artifactId>migration-commons</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.camunda.migration</groupId>
-        <artifactId>migration-commons</artifactId>
-        <version>${project.version}</version>
-        <type>test-jar</type>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.camunda.migration</groupId>
-        <artifactId>process-migration</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.camunda.migration</groupId>
-        <artifactId>identity-migration</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.camunda.migration</groupId>
-        <artifactId>usage-metric-migration</artifactId>
-        <version>${project.version}</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -2653,23 +2621,6 @@
               <configuration>
                 <rules>
                   <banDuplicatePomDependencyVersions></banDuplicatePomDependencyVersions>
-                </rules>
-              </configuration>
-            </execution>
-            <execution>
-              <id>forbid-banned-dependencies</id>
-              <goals>
-                <goal>enforce</goal>
-              </goals>
-              <configuration>
-                <rules>
-                  <!-- ban the direct usage of the zeebe-client-java dependency -->
-                  <bannedDependencies>
-                    <excludes>
-                      <exclude>io.camunda:zeebe-client-java</exclude>
-                    </excludes>
-                    <searchTransitive>false</searchTransitive>
-                  </bannedDependencies>
                 </rules>
               </configuration>
             </execution>

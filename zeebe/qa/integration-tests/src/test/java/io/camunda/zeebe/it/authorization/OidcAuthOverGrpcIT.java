@@ -72,6 +72,9 @@ public class OidcAuthOverGrpcIT {
           .withAuthenticatedAccess()
           .withAuthenticationMethod(AuthenticationMethod.OIDC)
           .withCamundaExporter("http://" + CONTAINER.getHttpHostAddress())
+          .withProperty(
+              "camunda.data.secondary-storage.elasticsearch.url",
+              "http://" + CONTAINER.getHttpHostAddress())
           .withSecurityConfig(
               c -> {
                 c.getAuthorizations().setEnabled(true);
@@ -138,7 +141,6 @@ public class OidcAuthOverGrpcIT {
         CamundaClient.newClientBuilder()
             .grpcAddress(broker.grpcAddress())
             .restAddress(broker.restAddress())
-            .usePlaintext()
             .preferRestOverGrpc(false)
             .defaultRequestTimeout(Duration.ofSeconds(15))
             .credentialsProvider(
@@ -159,7 +161,6 @@ public class OidcAuthOverGrpcIT {
         CamundaClient.newClientBuilder()
             .grpcAddress(broker.grpcAddress())
             .restAddress(broker.restAddress())
-            .usePlaintext()
             .preferRestOverGrpc(false)
             .defaultRequestTimeout(Duration.ofSeconds(15))
             .credentialsProvider(

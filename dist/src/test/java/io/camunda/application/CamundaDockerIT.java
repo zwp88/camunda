@@ -12,7 +12,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.dockerjava.api.command.CreateContainerCmd;
+import io.camunda.client.CamundaClient;
+import io.camunda.client.impl.CamundaClientBuilderImpl;
+import io.camunda.zeebe.model.bpmn.Bpmn;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,17 +25,22 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.startupcheck.OneShotStartupCheckStrategy;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 @EnabledIfSystemProperty(named = "camunda.docker.test.enabled", matches = "true")
 public class CamundaDockerIT {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(CamundaDockerIT.class);
 
   private static final int SERVER_PORT = 8080;
   private static final int MANAGEMENT_PORT = 9600;
@@ -40,6 +49,7 @@ public class CamundaDockerIT {
 
   private static final String CAMUNDA_NETWORK_ALIAS = "camunda";
   private static final String ELASTICSEARCH_NETWORK_ALIAS = "elasticsearch";
+  private static final String DATABASE_TYPE = "elasticsearch";
 
   private static final String CAMUNDA_TEST_DOCKER_IMAGE =
       System.getProperty("camunda.docker.test.image", "camunda/camunda:SNAPSHOT");
@@ -102,32 +112,61 @@ public class CamundaDockerIT {
     }
   }
 
-  // Regression for https://github.com/camunda/camunda/issues/35520
   @Test
-  public void testStartStandalonePrefixMigration() throws Exception {
-    // given
-    // create and start Elasticsearch container
+  public void testStartStandaloneCamundaWithUnifiedConfiguration() throws URISyntaxException {
     final ElasticsearchContainer elasticsearchContainer =
         createContainer(this::createElasticsearchContainer);
     elasticsearchContainer.start();
 
-    // create camunda container with only StandalonePrefixMigration app
-    final var prefixMigrationContainer =
-        new GenericContainer<>(CAMUNDA_TEST_DOCKER_IMAGE)
-            .withCreateContainerCmdModifier(
-                (final CreateContainerCmd cmd) ->
-                    cmd.withEntrypoint("/usr/local/camunda/bin/prefix-migration"))
-            .withStartupCheckStrategy(
-                new OneShotStartupCheckStrategy().withTimeout(Duration.ofSeconds(180)))
-            .withNetwork(Network.SHARED)
-            .withNetworkAliases(CAMUNDA_NETWORK_ALIAS)
-            .withEnv("CAMUNDA_TASKLIST_ELASTICSEARCH_URL", elasticsearchUrl())
-            .withEnv("CAMUNDA_OPERATE_ELASTICSEARCH_URL", elasticsearchUrl())
-            .withEnv("CAMUNDA_DATABASE_INDEXPREFIX", "some-prefix")
-            .withEnv("CAMUNDA_DATABASE_URL", elasticsearchUrl());
+    final GenericContainer camundaContainer =
+        createContainer(this::createUnauthenticatedUnifiedConfigCamundaContainer);
 
-    // when - then the container should start without errors
-    startContainer(createContainer(() -> prefixMigrationContainer));
+    startContainer(camundaContainer);
+
+    final String host = "http://" + createCamundaContainer().getHost() + ":";
+    final URI camundaEndpoint = URI.create(host + camundaContainer.getMappedPort(SERVER_PORT));
+    try (final CamundaClient camundaClient =
+        new CamundaClientBuilderImpl()
+            // set a longer timeout because containers in CI infrastructure can be slow
+            .defaultRequestTimeout(Duration.ofSeconds(60))
+            .preferRestOverGrpc(true)
+            .restAddress(camundaEndpoint)
+            .build()) {
+
+      camundaClient
+          .newDeployResourceCommand()
+          .addProcessModel(
+              Bpmn.createExecutableProcess("process")
+                  .startEvent()
+                  .serviceTask("test")
+                  .zeebeJobType("type")
+                  .endEvent()
+                  .done(),
+              "test.bpmn")
+          .send()
+          .join();
+
+      final var instance =
+          camundaClient
+              .newCreateInstanceCommand()
+              .bpmnProcessId("process")
+              .latestVersion()
+              .send()
+              .join();
+
+      Awaitility.await("Process instance is visible via search")
+          .atMost(Duration.ofMinutes(2))
+          .ignoreExceptions()
+          .untilAsserted(
+              () -> {
+                final var response = camundaClient.newProcessInstanceSearchRequest().send().join();
+                assertThat(response.items()).hasSize(1);
+
+                final var processInstance = response.items().getFirst();
+                assertThat(processInstance.getProcessInstanceKey())
+                    .isEqualTo(instance.getProcessInstanceKey());
+              });
+    }
   }
 
   private void startContainer(final GenericContainer container) {
@@ -155,8 +194,29 @@ public class CamundaDockerIT {
         .withExposedPorts(ELASTICSEARCH_PORT);
   }
 
+  private GenericContainer createUnauthenticatedUnifiedConfigCamundaContainer() {
+    return new GenericContainer<>(CAMUNDA_TEST_DOCKER_IMAGE)
+        .withLogConsumer(new Slf4jLogConsumer(LOGGER))
+        .withExposedPorts(SERVER_PORT, MANAGEMENT_PORT, GATEWAY_GRPC_PORT)
+        .withNetwork(Network.SHARED)
+        .withNetworkAliases(CAMUNDA_NETWORK_ALIAS)
+        .waitingFor(
+            new HttpWaitStrategy()
+                .forPort(MANAGEMENT_PORT)
+                .forPath("/actuator/health")
+                .withReadTimeout(Duration.ofSeconds(120)))
+        .withStartupTimeout(Duration.ofSeconds(300))
+        // Unified Configuration
+        .withEnv("CAMUNDA_DATA_SECONDARYSTORAGE_TYPE", DATABASE_TYPE)
+        .withEnv("CAMUNDA_DATA_SECONDARYSTORAGE_ELASTICSEARCH_URL", elasticsearchUrl())
+        // ---
+        .withEnv("CAMUNDA_SECURITY_AUTHENTICATION_UNPROTECTED_API", "true")
+        .withEnv("CAMUNDA_SECURITY_AUTHORIZATIONS_ENABLED", "false");
+  }
+
   private GenericContainer createCamundaContainer() {
     return new GenericContainer<>(CAMUNDA_TEST_DOCKER_IMAGE)
+        .withLogConsumer(new Slf4jLogConsumer(LOGGER))
         .withExposedPorts(SERVER_PORT, MANAGEMENT_PORT, GATEWAY_GRPC_PORT)
         .withNetwork(Network.SHARED)
         .withNetworkAliases(CAMUNDA_NETWORK_ALIAS)
@@ -171,14 +231,13 @@ public class CamundaDockerIT {
             "io.camunda.zeebe.exporter.ElasticsearchExporter")
         .withEnv("ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_URL", elasticsearchUrl())
         .withEnv("ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_BULK_SIZE", "1")
-        .withEnv("CAMUNDA_TASKLIST_ELASTICSEARCH_URL", elasticsearchUrl())
-        .withEnv("CAMUNDA_TASKLIST_ZEEBEELASTICSEARCH_URL", elasticsearchUrl())
         .withEnv("CAMUNDA_TASKLIST_ZEEBE_GATEWAYADDRESS", gatewayAddress())
         .withEnv("CAMUNDA_TASKLIST_ZEEBE_RESTADDRESS", httpUrl())
-        .withEnv("CAMUNDA_OPERATE_ELASTICSEARCH_URL", elasticsearchUrl())
-        .withEnv("CAMUNDA_OPERATE_ZEEBEELASTICSEARCH_URL", elasticsearchUrl())
+        // Unified Configuration
+        .withEnv("CAMUNDA_DATA_SECONDARYSTORAGE_ELASTICSEARCH_URL", elasticsearchUrl())
+        .withEnv("CAMUNDA_DATA_SECONDARYSTORAGE_TYPE", DATABASE_TYPE)
+        // ---
         .withEnv("CAMUNDA_OPERATE_ZEEBE_GATEWAYADDRESS", gatewayAddress())
-        .withEnv("CAMUNDA_DATABASE_URL", elasticsearchUrl())
         .withEnv("ZEEBE_BROKER_GATEWAY_ENABLE", "true");
   }
 

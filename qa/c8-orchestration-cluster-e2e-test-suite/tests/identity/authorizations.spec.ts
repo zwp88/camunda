@@ -18,8 +18,13 @@ import {waitForItemInList} from 'utils/waitForItemInList';
 import {relativizePath, Paths} from 'utils/relativizePath';
 import {captureScreenshot, captureFailureVideo} from '@setup';
 import {verifyAccess} from 'utils/accessVerification';
+import {cleanupRoles} from 'utils/rolesCleanup';
+import {cleanupUsers} from 'utils/usersCleanup';
 
-test.describe.serial('authorizations CRUD', () => {
+const createdRoleIds: string[] = [];
+const createdUserIds: string[] = [];
+
+test.describe.serial('component authorizations CRUD', () => {
   let NEW_USER: {
     username: string;
     name: string;
@@ -33,8 +38,8 @@ test.describe.serial('authorizations CRUD', () => {
   let NEW_COMPONENT_AUTHORIZATION: NonNullable<
     ReturnType<typeof createComponentAuthorization>
   >;
+
   test.beforeAll(() => {
-    // Create test data once for the entire serial test suite
     const testData = createTestData({
       user: true,
       authRole: true,
@@ -44,6 +49,14 @@ test.describe.serial('authorizations CRUD', () => {
     NEW_AUTH_ROLE = testData.authRole!;
     NEW_USER_AUTHORIZATION = createUserAuthorization(NEW_AUTH_ROLE);
     NEW_COMPONENT_AUTHORIZATION = testData.componentAuth!;
+
+    createdRoleIds.push(NEW_AUTH_ROLE.id);
+    createdUserIds.push(NEW_USER.username);
+  });
+
+  test.afterAll(async ({request}) => {
+    await cleanupRoles(request, createdRoleIds);
+    await cleanupUsers(request, createdUserIds);
   });
 
   test.beforeEach(async ({page, loginPage, identityAuthorizationsPage}) => {
@@ -110,29 +123,33 @@ test.describe.serial('authorizations CRUD', () => {
     });
   });
 
-  test('create component authorization', async ({
+  test('create component authorization for a role', async ({
     identityUsersPage,
     identityAuthorizationsPage,
     identityHeader,
     loginPage,
+    page,
   }) => {
     await identityAuthorizationsPage.createAuthorization(
       NEW_COMPONENT_AUTHORIZATION,
     );
     await identityHeader.logout();
     await loginPage.login(NEW_USER.username, NEW_USER.password);
-    await expect(identityUsersPage.userCell(NEW_USER.email)).toBeVisible();
     await expect(identityUsersPage.userCell('demo@example.com')).toBeVisible();
+    await waitForItemInList(page, identityUsersPage.userCell(NEW_USER.email), {
+      clickNext: true,
+      timeout: 30000,
+    });
   });
 
-  test('delete an authorization', async ({
+  test('delete component authorization for role', async ({
     page,
     identityHeader,
     loginPage,
     identityUsersPage,
     identityAuthorizationsPage,
   }) => {
-    await test.step(`Delete Authorization of new user`, async () => {
+    await test.step(`Delete component authorization for role`, async () => {
       const resourceType = NEW_COMPONENT_AUTHORIZATION.resourceType;
       await identityAuthorizationsPage.selectResourceTypeTab(resourceType);
       await identityAuthorizationsPage.clickDeleteAuthorizationButton(
@@ -170,9 +187,86 @@ test.describe.serial('authorizations CRUD', () => {
         LOGIN_CREDENTIALS.username,
         LOGIN_CREDENTIALS.password,
       );
+      await expect(identityUsersPage.usersHeading).toBeVisible();
       await identityUsersPage.deleteUser(NEW_USER);
       const userItem = identityUsersPage.userCell(NEW_USER.username);
       await waitForItemInList(page, userItem, {shouldBeVisible: false});
+    });
+  });
+});
+
+test.describe('authorization scenarios', () => {
+  test.beforeEach(async ({page, loginPage, identityAuthorizationsPage}) => {
+    await identityAuthorizationsPage.navigateToAuthorizations();
+    await loginPage.login(
+      LOGIN_CREDENTIALS.username,
+      LOGIN_CREDENTIALS.password,
+    );
+    await expect(page).toHaveURL(relativizePath(Paths.authorizations()));
+  });
+
+  test.afterAll(async ({request}) => {
+    await cleanupRoles(request, createdRoleIds);
+    await cleanupUsers(request, createdUserIds);
+  });
+
+  test.afterEach(async ({page}, testInfo) => {
+    await captureScreenshot(page, testInfo);
+    await captureFailureVideo(page, testInfo);
+  });
+
+  test('create component authorization for a user', async ({
+    page,
+    identityUsersPage,
+    identityAuthorizationsPage,
+    identityHeader,
+    loginPage,
+  }) => {
+    let testUser: {
+      username: string;
+      name: string;
+      email: string;
+      password: string;
+    };
+
+    await test.step(`Create new test user for direct authorization`, async () => {
+      const testData = createTestData({user: true});
+      testUser = testData.user!;
+
+      createdUserIds.push(testUser.username);
+
+      await identityUsersPage.navigateToUsers();
+      await identityUsersPage.createUser(testUser);
+
+      await identityAuthorizationsPage.navigateToAuthorizations();
+      await expect(page).toHaveURL(relativizePath(Paths.authorizations()));
+    });
+
+    await test.step(`Create component authorization for user`, async () => {
+      await identityAuthorizationsPage.createAuthorization({
+        ownerType: 'User',
+        ownerId: testUser.name,
+        resourceType: 'Component',
+        resourceId: '*',
+        accessPermissions: ['Access'],
+      });
+
+      const authorizationItem = identityAuthorizationsPage.getAuthorizationCell(
+        testUser.username,
+      );
+      await waitForItemInList(page, authorizationItem, {
+        shouldBeVisible: true,
+        timeout: 10000,
+        onAfterReload: () =>
+          identityAuthorizationsPage.selectResourceTypeTab('Component'),
+        clickNext: true,
+      });
+    });
+
+    await test.step(`Verify user can access Identity after authorization`, async () => {
+      await identityHeader.logout();
+      await loginPage.login(testUser.username, testUser.password);
+      await expect(identityUsersPage.userCell(testUser.email)).toBeVisible();
     });
   });
 });

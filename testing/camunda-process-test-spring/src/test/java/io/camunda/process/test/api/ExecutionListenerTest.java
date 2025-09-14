@@ -24,6 +24,8 @@ import static org.mockito.Mockito.when;
 import io.camunda.client.CamundaClient;
 import io.camunda.client.CamundaClientConfiguration;
 import io.camunda.client.api.JsonMapper;
+import io.camunda.client.spring.event.CamundaClientClosingSpringEvent;
+import io.camunda.client.spring.event.CamundaClientCreatedSpringEvent;
 import io.camunda.process.test.api.coverage.ProcessCoverage;
 import io.camunda.process.test.api.coverage.ProcessCoverageBuilder;
 import io.camunda.process.test.impl.client.CamundaManagementClient;
@@ -35,8 +37,6 @@ import io.camunda.process.test.impl.runtime.CamundaProcessTestContainerRuntime;
 import io.camunda.process.test.impl.runtime.CamundaProcessTestRuntimeBuilder;
 import io.camunda.process.test.impl.testresult.CamundaProcessTestResultCollector;
 import io.camunda.process.test.impl.testresult.ProcessTestResult;
-import io.camunda.spring.client.event.CamundaClientClosingEvent;
-import io.camunda.spring.client.event.CamundaClientCreatedEvent;
 import io.camunda.zeebe.client.ZeebeClient;
 import io.camunda.zeebe.client.ZeebeClientConfiguration;
 import io.camunda.zeebe.spring.client.event.ZeebeClientClosingEvent;
@@ -91,8 +91,13 @@ public class ExecutionListenerTest {
   @Mock private io.camunda.zeebe.client.api.JsonMapper zeebeClientJsonMapper;
   @Captor private ArgumentCaptor<ZeebeClient> zeebeClientArgumentCaptor;
   @Captor private ArgumentCaptor<CamundaProcessTestContext> camundaProcessTestContextArgumentCaptor;
-  @Captor private ArgumentCaptor<CamundaClientCreatedEvent> camundaClientCreatedEventArgumentCaptor;
-  @Captor private ArgumentCaptor<CamundaClientClosingEvent> camundaClientClosingEventArgumentCaptor;
+
+  @Captor
+  private ArgumentCaptor<CamundaClientCreatedSpringEvent> camundaClientCreatedEventArgumentCaptor;
+
+  @Captor
+  private ArgumentCaptor<CamundaClientClosingSpringEvent> camundaClientClosingEventArgumentCaptor;
+
   @Captor private ArgumentCaptor<ZeebeClientCreatedEvent> zeebeClientCreatedEventArgumentCaptor;
   @Captor private ArgumentCaptor<ZeebeClientClosingEvent> zeebeClientClosingEventArgumentCaptor;
 
@@ -107,8 +112,7 @@ public class ExecutionListenerTest {
             () ->
                 CamundaClient.newClientBuilder()
                     .grpcAddress(GRPC_API_ADDRESS)
-                    .restAddress(REST_API_ADDRESS)
-                    .usePlaintext());
+                    .restAddress(REST_API_ADDRESS));
 
     when(processCoverageBuilder.build()).thenReturn(processCoverage);
     when(testContext.getApplicationContext()).thenReturn(applicationContext);
@@ -148,7 +152,7 @@ public class ExecutionListenerTest {
     verify(applicationContext).publishEvent(camundaClientCreatedEventArgumentCaptor.capture());
     verify(applicationContext).publishEvent(zeebeClientCreatedEventArgumentCaptor.capture());
 
-    final CamundaClientCreatedEvent createdEvent =
+    final CamundaClientCreatedSpringEvent createdEvent =
         camundaClientCreatedEventArgumentCaptor.getValue();
     assertThat(createdEvent).isNotNull();
     assertThat(createdEvent.getClient()).isEqualTo(camundaClient);
@@ -282,7 +286,7 @@ public class ExecutionListenerTest {
 
     // then
     verify(applicationContext).publishEvent(camundaClientCreatedEventArgumentCaptor.capture());
-    final CamundaClientCreatedEvent createdEvent =
+    final CamundaClientCreatedSpringEvent createdEvent =
         camundaClientCreatedEventArgumentCaptor.getValue();
 
     verify(applicationContext).publishEvent(zeebeClientCreatedEventArgumentCaptor.capture());
@@ -290,7 +294,7 @@ public class ExecutionListenerTest {
         zeebeClientCreatedEventArgumentCaptor.getValue();
 
     verify(applicationContext).publishEvent(camundaClientClosingEventArgumentCaptor.capture());
-    final CamundaClientClosingEvent closedClient =
+    final CamundaClientClosingSpringEvent closedClient =
         camundaClientClosingEventArgumentCaptor.getValue();
     assertThat(createdEvent.getClient()).isEqualTo(closedClient.getClient());
 

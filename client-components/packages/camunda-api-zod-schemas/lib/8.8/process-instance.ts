@@ -1,3 +1,11 @@
+/*
+ * Copyright Camunda Services GmbH and/or licensed to Camunda Services GmbH under
+ * one or more contributor license agreements. See the NOTICE file distributed
+ * with this work for additional information regarding copyright ownership.
+ * Licensed under the Camunda License 1.0. You may not use this file
+ * except in compliance with the Camunda License 1.0.
+ */
+
 import {z} from 'zod';
 import {
 	API_VERSION,
@@ -213,7 +221,13 @@ type SequenceFlow = z.infer<typeof sequenceFlowSchema>;
 const getProcessInstanceSequenceFlowsResponseBodySchema = getCollectionResponseBodySchema(sequenceFlowSchema);
 type GetProcessInstanceSequenceFlowsResponseBody = z.infer<typeof getProcessInstanceSequenceFlowsResponseBodySchema>;
 
-type CreateIncidentResolutionBatchOperationRequestBody = z.infer<typeof queryProcessInstancesFilterSchema>;
+const createIncidentResolutionBatchOperationRequestBodySchema = z.object({
+	filter: getOrFilterSchema(queryProcessInstancesFilterSchema),
+});
+
+type CreateIncidentResolutionBatchOperationRequestBody = z.infer<
+	typeof createIncidentResolutionBatchOperationRequestBodySchema
+>;
 
 const createIncidentResolutionBatchOperationResponseBodySchema = z.object({
 	batchOperationKey: z.string(),
@@ -229,7 +243,11 @@ const createIncidentResolutionBatchOperation: Endpoint = {
 	getUrl: () => `/${API_VERSION}/process-instances/incident-resolution`,
 };
 
-type CreateCancellationBatchOperationRequestBody = z.infer<typeof queryProcessInstancesFilterSchema>;
+const createCancellationBatchOperationRequestBodySchema = z.object({
+	filter: getOrFilterSchema(queryProcessInstancesFilterSchema),
+});
+
+type CreateCancellationBatchOperationRequestBody = z.infer<typeof createCancellationBatchOperationRequestBodySchema>;
 
 const createCancellationBatchOperationResponseBodySchema = z.object({
 	batchOperationKey: z.string(),

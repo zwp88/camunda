@@ -68,6 +68,7 @@ import io.camunda.client.api.command.StatusRequestStep1;
 import io.camunda.client.api.command.SuspendBatchOperationStep1;
 import io.camunda.client.api.command.TopologyRequestStep1;
 import io.camunda.client.api.command.UnassignClientFromGroupCommandStep1;
+import io.camunda.client.api.command.UnassignClientFromTenantCommandStep1;
 import io.camunda.client.api.command.UnassignGroupFromTenantCommandStep1;
 import io.camunda.client.api.command.UnassignMappingRuleFromGroupStep1;
 import io.camunda.client.api.command.UnassignRoleFromClientCommandStep1;
@@ -118,6 +119,7 @@ import io.camunda.client.api.search.request.BatchOperationSearchRequest;
 import io.camunda.client.api.search.request.ClientsByGroupSearchRequest;
 import io.camunda.client.api.search.request.ClientsByRoleSearchRequest;
 import io.camunda.client.api.search.request.ClientsByTenantSearchRequest;
+import io.camunda.client.api.search.request.CorrelatedMessageSearchRequest;
 import io.camunda.client.api.search.request.DecisionDefinitionSearchRequest;
 import io.camunda.client.api.search.request.DecisionInstanceSearchRequest;
 import io.camunda.client.api.search.request.DecisionRequirementsSearchRequest;
@@ -2189,15 +2191,15 @@ public interface CamundaClient extends AutoCloseable, JobClient {
    *
    * <pre>
    * camundaClient
-   *   .newUnassignGroupFromTenantCommand(tenantId)
-   *   .groupId(groupId)
+   *   .newUnassignGroupFromTenantCommand()
+   *   .groupId("groupId")
+   *   .tenantId("tenantId")
    *   .send();
    * </pre>
    *
-   * @param tenantId the unique identifier of the tenant
    * @return a builder to configure and send the unassign group from tenant command
    */
-  UnassignGroupFromTenantCommandStep1 newUnassignGroupFromTenantCommand(String tenantId);
+  UnassignGroupFromTenantCommandStep1 newUnassignGroupFromTenantCommand();
 
   /**
    * Command to assign a client to a group.
@@ -2253,6 +2255,24 @@ public interface CamundaClient extends AutoCloseable, JobClient {
    * @return a builder to configure and send the assign client to tenant command
    */
   AssignClientToTenantCommandStep1 newAssignClientToTenantCommand();
+
+  /**
+   * Command to unassign a client from a tenant.
+   *
+   * <pre>
+   *
+   * camundaClient
+   *  .newUnassignClientFromTenantCommand()
+   *  .clientId("clientId")
+   *  .tenantId("tenantId")
+   *  .send();
+   * </pre>
+   *
+   * <p>This command is only sent via REST over HTTP, not via gRPC <br>
+   *
+   * @return a builder to configure and send the unassign client from tenant command
+   */
+  UnassignClientFromTenantCommandStep1 newUnassignClientFromTenantCommand();
 
   /**
    * Command to create an authorization
@@ -2685,4 +2705,20 @@ public interface CamundaClient extends AutoCloseable, JobClient {
    * @return a builder for the message subscription search request
    */
   MessageSubscriptionSearchRequest newMessageSubscriptionSearchRequest();
+
+  /**
+   * Executes a search request to query correlated messages.
+   *
+   * <pre>
+   * camundaClient
+   *  .newCorrelatedMessageSearchRequest()
+   *  .filter((f) -> f.messageName("myMessage"))
+   *  .sort((s) -> s.correlationTime().desc())
+   *  .page((p) -> p.limit(100))
+   *  .send();
+   * </pre>
+   *
+   * @return a builder for the correlated message search request
+   */
+  CorrelatedMessageSearchRequest newCorrelatedMessageSearchRequest();
 }

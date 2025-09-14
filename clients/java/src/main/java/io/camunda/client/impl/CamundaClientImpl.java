@@ -79,6 +79,7 @@ import io.camunda.client.api.command.SuspendBatchOperationStep1;
 import io.camunda.client.api.command.ThrowErrorCommandStep1;
 import io.camunda.client.api.command.TopologyRequestStep1;
 import io.camunda.client.api.command.UnassignClientFromGroupCommandStep1;
+import io.camunda.client.api.command.UnassignClientFromTenantCommandStep1;
 import io.camunda.client.api.command.UnassignGroupFromTenantCommandStep1;
 import io.camunda.client.api.command.UnassignMappingRuleFromGroupStep1;
 import io.camunda.client.api.command.UnassignRoleFromClientCommandStep1;
@@ -129,6 +130,7 @@ import io.camunda.client.api.search.request.BatchOperationSearchRequest;
 import io.camunda.client.api.search.request.ClientsByGroupSearchRequest;
 import io.camunda.client.api.search.request.ClientsByRoleSearchRequest;
 import io.camunda.client.api.search.request.ClientsByTenantSearchRequest;
+import io.camunda.client.api.search.request.CorrelatedMessageSearchRequest;
 import io.camunda.client.api.search.request.DecisionDefinitionSearchRequest;
 import io.camunda.client.api.search.request.DecisionInstanceSearchRequest;
 import io.camunda.client.api.search.request.DecisionRequirementsSearchRequest;
@@ -215,6 +217,7 @@ import io.camunda.client.impl.command.StreamJobsCommandImpl;
 import io.camunda.client.impl.command.SuspendBatchOperationCommandImpl;
 import io.camunda.client.impl.command.TopologyRequestImpl;
 import io.camunda.client.impl.command.UnassignClientFromGroupCommandImpl;
+import io.camunda.client.impl.command.UnassignClientFromTenantCommandImpl;
 import io.camunda.client.impl.command.UnassignGroupFromTenantCommandImpl;
 import io.camunda.client.impl.command.UnassignMappingRuleFromGroupCommandImpl;
 import io.camunda.client.impl.command.UnassignRoleFromClientCommandImpl;
@@ -262,6 +265,7 @@ import io.camunda.client.impl.search.request.BatchOperationSearchRequestImpl;
 import io.camunda.client.impl.search.request.ClientsByGroupSearchRequestImpl;
 import io.camunda.client.impl.search.request.ClientsByRoleSearchRequestImpl;
 import io.camunda.client.impl.search.request.ClientsByTenantSearchRequestImpl;
+import io.camunda.client.impl.search.request.CorrelatedMessageSearchRequestImpl;
 import io.camunda.client.impl.search.request.DecisionDefinitionSearchRequestImpl;
 import io.camunda.client.impl.search.request.DecisionInstanceSearchRequestImpl;
 import io.camunda.client.impl.search.request.DecisionRequirementsSearchRequestImpl;
@@ -292,6 +296,7 @@ import io.camunda.client.impl.search.request.VariableSearchRequestImpl;
 import io.camunda.client.impl.statistics.request.ProcessDefinitionElementStatisticsRequestImpl;
 import io.camunda.client.impl.statistics.request.ProcessInstanceElementStatisticsRequestImpl;
 import io.camunda.client.impl.statistics.request.UsageMetricsStatisticsRequestImpl;
+import io.camunda.client.impl.util.AddressUtil;
 import io.camunda.client.impl.util.ExecutorResource;
 import io.camunda.client.impl.util.VersionUtil;
 import io.camunda.client.impl.worker.JobClientImpl;
@@ -427,7 +432,8 @@ public final class CamundaClientImpl implements CamundaClient {
 
   private static void configureConnectionSecurity(
       final CamundaClientConfiguration config, final NettyChannelBuilder channelBuilder) {
-    if (!config.isPlaintextConnectionEnabled()) {
+    final URI grpcAddress = config.getGrpcAddress();
+    if (!AddressUtil.isPlaintextConnection(grpcAddress)) {
       final String certificatePath = config.getCaCertificatePath();
       SslContext sslContext = null;
 
@@ -1174,9 +1180,8 @@ public final class CamundaClientImpl implements CamundaClient {
   }
 
   @Override
-  public UnassignGroupFromTenantCommandStep1 newUnassignGroupFromTenantCommand(
-      final String tenantId) {
-    return new UnassignGroupFromTenantCommandImpl(httpClient, tenantId);
+  public UnassignGroupFromTenantCommandStep1 newUnassignGroupFromTenantCommand() {
+    return new UnassignGroupFromTenantCommandImpl(httpClient);
   }
 
   @Override
@@ -1192,6 +1197,11 @@ public final class CamundaClientImpl implements CamundaClient {
   @Override
   public AssignClientToTenantCommandStep1 newAssignClientToTenantCommand() {
     return new AssignClientToTenantCommandImpl(httpClient);
+  }
+
+  @Override
+  public UnassignClientFromTenantCommandStep1 newUnassignClientFromTenantCommand() {
+    return new UnassignClientFromTenantCommandImpl(httpClient);
   }
 
   @Override
@@ -1329,6 +1339,11 @@ public final class CamundaClientImpl implements CamundaClient {
   @Override
   public MessageSubscriptionSearchRequest newMessageSubscriptionSearchRequest() {
     return new MessageSubscriptionSearchRequestImpl(httpClient, jsonMapper);
+  }
+
+  @Override
+  public CorrelatedMessageSearchRequest newCorrelatedMessageSearchRequest() {
+    return new CorrelatedMessageSearchRequestImpl(httpClient, jsonMapper);
   }
 
   private JobClient newJobClient() {

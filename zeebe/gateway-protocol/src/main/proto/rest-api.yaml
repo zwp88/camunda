@@ -4340,6 +4340,37 @@ paths:
           $ref: "#/components/responses/InternalServerError"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+
+  /correlated-messages/search:
+    post:
+      tags:
+        - Message
+      operationId: searchCorrelatedMessages
+      summary: Search correlated messages
+      description: |
+        Search for correlated messages based on given criteria.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CorrelatedMessageSearchQuery"
+      responses:
+        "200":
+          description: The correlated messages search result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CorrelatedMessageSearchQueryResult"
+        "400":
+          $ref: "#/components/responses/InvalidData"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /message-subscriptions/search:
     post:
       tags:
@@ -4923,13 +4954,15 @@ paths:
           schema:
             type: string
             format: date
+            example: "2025-06-07T13:14:15Z"
         - name: endTime
           in: query
           required: true
-          description: The end date for usage metrics, including this date.
+          description: The end date for usage metrics, excluding this date.
           schema:
             type: string
             format: date
+            example: "2026-07-08T13:14:15Z"
         - name: tenantId
           in: query
           required: false
@@ -4951,6 +4984,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UsageMetricsResponse"
+              examples:
+                "Response without tenants":
+                  value:
+                    "processInstances": 5
+                    "decisionInstances": 23
+                    "activeTenants": 2
+                    "assignees": 3
+                    "tenants": {}
+                "Response with tenants":
+                  value:
+                    "processInstances": 5
+                    "decisionInstances": 23
+                    "activeTenants": 2
+                    "assignees": 3
+                    "tenants":
+                      "tenant1":
+                        "processInstances": 1
+                        "decisionInstances": 2
+                        "assignees": 1
+                      "tenant2":
+                        "processInstances": 4
+                        "decisionInstances": 21
+                        "assignees": 3
         "400":
           $ref: "#/components/responses/InvalidData"
         "401":
@@ -5830,6 +5886,9 @@ components:
         elementInstanceKey:
           type: string
           description: The key of the element instance.
+        processName:
+          type: string
+          description: The name of the process definition.
         processDefinitionKey:
           type: string
           description: The key of the process definition.
@@ -7086,6 +7145,157 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/IncidentResult"
+    CorrelatedMessageSearchQueryResult:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/SearchQueryResponse"
+      properties:
+        items:
+          description: The matching correlated messages.
+          type: array
+          items:
+            $ref: "#/components/schemas/CorrelatedMessageResult"
+    CorrelatedMessageResult:
+      type: object
+      properties:
+        correlationKey:
+          description: The correlation key of the message.
+          type: string
+        correlationTime:
+          description: The time when the message was correlated.
+          type: string
+          format: date-time
+        elementId:
+          description: The element ID that received the message.
+          type: string
+        elementInstanceKey:
+          description: The element instance key that received the message.
+          type: string
+        messageKey:
+          description: The message key.
+          type: string
+        messageName:
+          description: The name of the message.
+          type: string
+        partitionId:
+          description: The partition ID that correlated the message.
+          type: integer
+          format: int32
+        processDefinitionId:
+          description: The process definition ID associated with this correlated message.
+          type: string
+        processDefinitionKey:
+          description: The process definition key associated with this correlated message.
+          type: string
+        processInstanceKey:
+          description: The process instance key associated with this correlated message.
+          type: string
+        subscriptionKey:
+          description: The subscription key that received the message.
+          type: string
+        tenantId:
+          description: The tenant ID associated with this correlated message.
+          type: string
+      required:
+        - correlationKey
+        - correlationTime
+        - elementId
+        - messageKey
+        - messageName
+        - partitionId
+        - processDefinitionId
+        - processInstanceKey
+        - subscriptionKey
+        - tenantId
+    CorrelatedMessageSearchQuery:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/SearchQueryRequest"
+      properties:
+        sort:
+          description: Sort field criteria.
+          type: array
+          items:
+            $ref: "#/components/schemas/CorrelatedMessageSearchQuerySortRequest"
+        filter:
+          description: The correlated messages search filters.
+          allOf:
+            - $ref: "#/components/schemas/CorrelatedMessageFilter"
+    CorrelatedMessageSearchQuerySortRequest:
+      type: object
+      properties:
+        field:
+          description: The field to sort by.
+          type: string
+          enum:
+            - correlationKey
+            - correlationTime
+            - elementId
+            - elementInstanceKey
+            - messageKey
+            - messageName
+            - partitionId
+            - processDefinitionId
+            - processDefinitionKey
+            - processInstanceKey
+            - subscriptionKey
+            - tenantId
+        order:
+          $ref: "#/components/schemas/SortOrderEnum"
+      required:
+        - field
+    CorrelatedMessageFilter:
+      description: Correlated messages search filter.
+      type: object
+      properties:
+        correlationKey:
+          description: The correlation key of the message.
+          allOf:
+            - $ref: "#/components/schemas/StringFilterProperty"
+        correlationTime:
+          description: The time when the message was correlated.
+          allOf:
+            - $ref: "#/components/schemas/DateTimeFilterProperty"
+        elementId:
+          description: The element ID that received the message.
+          allOf:
+            - $ref: "#/components/schemas/StringFilterProperty"
+        elementInstanceKey:
+          description: The element instance key that received the message.
+          allOf:
+            - $ref: "#/components/schemas/BasicStringFilterProperty"
+        messageKey:
+          description: The message key.
+          allOf:
+            - $ref: "#/components/schemas/BasicStringFilterProperty"
+        messageName:
+          description: The name of the message.
+          allOf:
+            - $ref: "#/components/schemas/StringFilterProperty"
+        partitionId:
+          description: The partition ID that correlated the message.
+          allOf:
+            - $ref: "#/components/schemas/IntegerFilterProperty"
+        processDefinitionId:
+          description: The process definition ID associated with this correlated message.
+          allOf:
+            - $ref: "#/components/schemas/StringFilterProperty"
+        processDefinitionKey:
+          description: The process definition key associated with this correlated message.
+          allOf:
+            - $ref: "#/components/schemas/BasicStringFilterProperty"
+        processInstanceKey:
+          description: The process instance key associated with this correlated message.
+          allOf:
+            - $ref: "#/components/schemas/BasicStringFilterProperty"
+        subscriptionKey:
+          description: The subscription key that received the message.
+          allOf:
+            - $ref: "#/components/schemas/BasicStringFilterProperty"
+        tenantId:
+          description: The tenant ID associated with this correlated message.
+          allOf:
+            - $ref: "#/components/schemas/StringFilterProperty"
     MessageSubscriptionSearchQueryResult:
       type: object
       allOf:
@@ -7117,8 +7327,8 @@ components:
         elementInstanceKey:
           description: The element instance key associated with this message subscription.
           type: string
-        messageSubscriptionType:
-          $ref: "#/components/schemas/MessageSubscriptionTypeEnum"
+        messageSubscriptionState:
+          $ref: "#/components/schemas/MessageSubscriptionStateEnum"
         lastUpdatedDate:
           description: The last updated date of the message subscription.
           type: string
@@ -7144,7 +7354,7 @@ components:
             - processInstanceKey
             - elementId
             - elementInstanceKey
-            - messageSubscriptionType
+            - messageSubscriptionState
             - lastUpdatedDate
             - messageName
             - correlationKey
@@ -7191,10 +7401,10 @@ components:
           description: The element instance key associated with this message subscription.
           allOf:
             - $ref: "#/components/schemas/BasicStringFilterProperty"
-        messageSubscriptionType:
-          description: The message subscription type.
+        messageSubscriptionState:
+          description: The message subscription state.
           allOf:
-            - $ref: "#/components/schemas/MessageSubscriptionTypeFilterProperty"
+            - $ref: "#/components/schemas/MessageSubscriptionStateFilterProperty"
         lastUpdatedDate:
           description: The last updated date of the message subscription.
           allOf:
@@ -7211,35 +7421,37 @@ components:
           description: The unique external tenant ID.
           allOf:
             - $ref: "#/components/schemas/StringFilterProperty"
-    MessageSubscriptionTypeFilterProperty:
-      description: MessageSubscriptionTypeEnum with full advanced search capabilities.
+    MessageSubscriptionStateFilterProperty:
+      description: MessageSubscriptionStateEnum with full advanced search capabilities.
       type: object
       oneOf:
         - type: string
           title: Exact match
           description: Matches the value exactly.
           allOf:
-            - $ref: "#/components/schemas/MessageSubscriptionTypeEnum"
-        - $ref: "#/components/schemas/AdvancedMessageSubscriptionTypeFilter"
-    MessageSubscriptionTypeEnum:
-      description: The type of message subscription.
+            - $ref: "#/components/schemas/MessageSubscriptionStateEnum"
+        - $ref: "#/components/schemas/AdvancedMessageSubscriptionStateFilter"
+    MessageSubscriptionStateEnum:
+      description: The state of message subscription.
       type: string
       enum:
+        - CORRELATED
         - CREATED
+        - DELETED
         - MIGRATED
-    AdvancedMessageSubscriptionTypeFilter:
+    AdvancedMessageSubscriptionStateFilter:
       title: Advanced filter
-      description: Advanced MessageSubscriptionTypeEnum filter
+      description: Advanced MessageSubscriptionStateEnum filter
       type: object
       properties:
         $eq:
           description: Checks for equality with the provided value.
           allOf:
-            - $ref: "#/components/schemas/MessageSubscriptionTypeEnum"
+            - $ref: "#/components/schemas/MessageSubscriptionStateEnum"
         $neq:
           description: Checks for inequality with the provided value.
           allOf:
-            - $ref: "#/components/schemas/MessageSubscriptionTypeEnum"
+            - $ref: "#/components/schemas/MessageSubscriptionStateEnum"
         $exists:
           description: Checks if the current property exists.
           type: boolean
@@ -7247,7 +7459,7 @@ components:
           description: Checks if the property matches any of the provided values.
           type: array
           items:
-            $ref: "#/components/schemas/MessageSubscriptionTypeEnum"
+            $ref: "#/components/schemas/MessageSubscriptionStateEnum"
         $like:
           $ref: "#/components/schemas/LikeFilterProperty"
     IncidentResult:
@@ -7361,6 +7573,8 @@ components:
           type: object
           additionalProperties:
             type: object
+            title: The tenant ID.
+            description: The usage metrics for the specific tenant.
             allOf:
               - $ref: "#/components/schemas/UsageMetricsResponseItem"
     UsageMetricsResponseItem:
@@ -10659,14 +10873,15 @@ components:
         $like:
           $ref: "#/components/schemas/LikeFilterProperty"
     BatchOperationStateEnum:
-      description: The state, one of ACTIVE, COMPLETED, TERMINATED.
+      description: The state of the batch operation.
       enum:
-        - CREATED
         - ACTIVE
-        - SUSPENDED
-        - COMPLETED
-        - PARTIALLY_COMPLETED
         - CANCELED
+        - COMPLETED
+        - CREATED
+        - FAILED
+        - PARTIALLY_COMPLETED
+        - SUSPENDED
     BatchOperationItemSearchQuerySortRequest:
       type: object
       properties:
@@ -10778,12 +10993,13 @@ components:
           description: The state of the batch operation.
           type: string
           enum:
-            - CREATED
             - ACTIVE
-            - SUSPENDED
-            - COMPLETED
-            - PARTIALLY_COMPLETED
             - CANCELED
+            - COMPLETED
+            - CREATED
+            - FAILED
+            - PARTIALLY_COMPLETED
+            - SUSPENDED
         batchOperationType:
           $ref: "#/components/schemas/BatchOperationTypeEnum"
         startDate:

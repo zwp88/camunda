@@ -27,14 +27,27 @@ import {
   defaultAssertionOptions,
   generateUniqueId,
 } from '../../../../utils/constants';
+import {cleanupGroups} from '../../../../utils/groupsCleanup';
 
 test.describe.parallel('Group Users API Tests', () => {
   const state: Record<string, unknown> = {};
+  state['createdIds'] = [];
 
   test.beforeAll(async ({request}) => {
     await createGroupAndStoreResponseFields(request, 3, state);
+
     await assignUsersToGroup(request, 1, state['groupId2'] as string, state);
     await assignUsersToGroup(request, 1, state['groupId3'] as string, state);
+
+    (state['createdIds'] as string[]).push(
+      ...(Object.values(state).filter(
+        (value) => typeof value === 'string' && value.startsWith('group'),
+      ) as string[]),
+    );
+  });
+
+  test.afterAll(async ({request}) => {
+    await cleanupGroups(request, state['createdIds'] as string[]);
   });
 
   test('Assign User To Group Not Found', async ({request}) => {
@@ -91,7 +104,7 @@ test.describe.parallel('Group Users API Tests', () => {
   test('Search Users For Group', async ({request}) => {
     const groupId: string = state['groupId2'] as string;
     const expectedBody = CREATE_GROUP_USERS_EXPECTED_BODY_USING_GROUP(
-      groupId,
+      'groupId2',
       state,
     );
     const requiredFields = Object.keys(expectedBody);

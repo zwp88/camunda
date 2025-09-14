@@ -559,6 +559,52 @@ public class SchemaManagerIT {
   }
 
   @TestTemplate
+  void shouldUpdateLifeCyclePoliciesWithNewValuesOnRestartIfEnabled(
+      final SearchEngineConfiguration config, final SearchClientAdapter searchClientAdapter)
+      throws IOException {
+    // given
+    config.schemaManager().setCreateSchema(true);
+    final var retention = config.retention();
+    retention.setEnabled(true);
+    retention.setPolicyName("custom-retention-policy");
+    retention.setMinimumAge("88d");
+    retention.setUsageMetricsPolicyName("custom-metrics-retention-policy");
+    retention.setUsageMetricsMinimumAge("100d");
+
+    final var schemaManager =
+        new SchemaManager(
+            searchEngineClientFromConfig(config), Set.of(), Set.of(), config, objectMapper);
+    // when
+    schemaManager.startup();
+
+    // then: verify that all configured retention policies were created with custom value
+    assertThat(searchClientAdapter.getPolicyAsNode("custom-retention-policy"))
+        .asInstanceOf(type(JsonNode.class)) // switch from IterableAssert -> ObjectAssert<JsonNode>
+        .extracting(this::retentionMinAge)
+        .isEqualTo("88d");
+
+    assertThat(searchClientAdapter.getPolicyAsNode("custom-metrics-retention-policy"))
+        .asInstanceOf(type(JsonNode.class))
+        .extracting(this::retentionMinAge)
+        .isEqualTo("100d");
+
+    // when: update the retention configuration with new values and restart the schema manager
+    retention.setMinimumAge("44d");
+    retention.setUsageMetricsMinimumAge("50d");
+    schemaManager.startup();
+
+    // then: verify that all configured retention policies were updated with new custom values
+    assertThat(searchClientAdapter.getPolicyAsNode("custom-retention-policy"))
+        .asInstanceOf(type(JsonNode.class)) // switch from IterableAssert -> ObjectAssert<JsonNode>
+        .extracting(this::retentionMinAge)
+        .isEqualTo("44d");
+    assertThat(searchClientAdapter.getPolicyAsNode("custom-metrics-retention-policy"))
+        .asInstanceOf(type(JsonNode.class))
+        .extracting(this::retentionMinAge)
+        .isEqualTo("50d");
+  }
+
+  @TestTemplate
   void shouldIsSchemaReadyForUseReturnTrueWhenAllIndicesAndTemplatesAreCreated(
       final SearchEngineConfiguration config, final SearchClientAdapter ignored) {
     // given
@@ -920,6 +966,7 @@ public class SchemaManagerIT {
         // to make sure no index will be accidentally dropped, names are changed or added
         .containsExactlyInAnyOrder(
             newPrefix + "-camunda-authorization-8.8.0_",
+            newPrefix + "-camunda-correlated-message-8.8.0_",
             newPrefix + "-camunda-group-8.8.0_",
             newPrefix + "-camunda-mapping-rule-8.8.0_",
             newPrefix + "-camunda-role-8.8.0_",
@@ -948,7 +995,7 @@ public class SchemaManagerIT {
             newPrefix + "-tasklist-draft-task-variable-8.3.0_",
             newPrefix + "-tasklist-form-8.4.0_",
             newPrefix + "-tasklist-metric-8.3.0_",
-            newPrefix + "-tasklist-task-8.5.0_",
+            newPrefix + "-tasklist-task-8.8.0_",
             newPrefix + "-tasklist-task-variable-8.3.0_",
             newPrefix + "-tasklist-import-position-8.2.0_");
   }

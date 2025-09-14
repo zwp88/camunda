@@ -48,7 +48,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 @MultiDbTest
-@DisabledIfSystemProperty(named = "test.integration.camunda.database.type", matches = "rdbms")
 @DisabledIfSystemProperty(named = "test.integration.camunda.database.type", matches = "AWS_OS")
 class TenantAuthorizationIT {
 
@@ -290,6 +289,64 @@ class TenantAuthorizationIT {
                   camundaClient.newClientsByTenantSearchRequest(TENANT_ID_1).send().join();
               Assertions.assertThat(clients.items())
                   .anyMatch(r -> clientId.equals(r.getClientId()));
+            });
+  }
+
+  @Test
+  void unassignClientFromTenantShouldReturnForbiddenIfUnauthorized(
+      @Authenticated(RESTRICTED) final CamundaClient camundaClient) {
+    assertThatThrownBy(
+            () ->
+                camundaClient
+                    .newUnassignClientFromTenantCommand()
+                    .clientId("clientId")
+                    .tenantId(TENANT_ID_1)
+                    .send()
+                    .join())
+        .isInstanceOf(ProblemException.class)
+        .hasMessageContaining("403: 'Forbidden'");
+  }
+
+  @Test
+  void unassignClientFromTenantShouldUnassignClientIfAuthorized(
+      @Authenticated(ADMIN) final CamundaClient camundaClient) {
+    // given - first assign the client to the tenant
+    final String clientId = "clientIdToUnassign";
+    camundaClient
+        .newAssignClientToTenantCommand()
+        .clientId(clientId)
+        .tenantId(TENANT_ID_1)
+        .send()
+        .join();
+
+    // verify client is assigned
+    Awaitility.await("Client is assigned to the tenant")
+        .ignoreExceptionsInstanceOf(ProblemException.class)
+        .untilAsserted(
+            () -> {
+              final var clients =
+                  camundaClient.newClientsByTenantSearchRequest(TENANT_ID_1).send().join();
+              Assertions.assertThat(clients.items())
+                  .anyMatch(r -> clientId.equals(r.getClientId()));
+            });
+
+    // when - unassign the client from the tenant
+    camundaClient
+        .newUnassignClientFromTenantCommand()
+        .clientId(clientId)
+        .tenantId(TENANT_ID_1)
+        .send()
+        .join();
+
+    // then - verify client is no longer assigned
+    Awaitility.await("Client is unassigned from the tenant")
+        .ignoreExceptionsInstanceOf(ProblemException.class)
+        .untilAsserted(
+            () -> {
+              final var clients =
+                  camundaClient.newClientsByTenantSearchRequest(TENANT_ID_1).send().join();
+              Assertions.assertThat(clients.items())
+                  .noneMatch(r -> clientId.equals(r.getClientId()));
             });
   }
 

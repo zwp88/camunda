@@ -18,24 +18,37 @@ import {
   assertConflictRequest,
 } from '../../../../utils/http';
 import {
-  CREATE_MAPPING_EXPECTED_BODY_USING_GROUP,
+  MAPPING_RULE_EXPECTED_BODY_USING_STATE,
   mappingRuleRequiredFields,
 } from '../../../../utils/beans/requestBeans';
 import {
   assignMappingToGroup,
   createGroupAndStoreResponseFields,
   createMappingRule,
-  mappingRuleFromState,
+  mappingRuleIdFromState,
 } from '../../../../utils/requestHelpers';
 import {defaultAssertionOptions} from '../../../../utils/constants';
+import {cleanupGroups} from '../../../../utils/groupsCleanup';
 
 test.describe.parallel('Group Mapping Rules API Tests', () => {
   const state: Record<string, unknown> = {};
+  state['createdIds'] = [];
 
   test.beforeAll(async ({request}) => {
     await createGroupAndStoreResponseFields(request, 3, state);
+
     await assignMappingToGroup(request, 1, state['groupId2'] as string, state);
     await assignMappingToGroup(request, 1, state['groupId3'] as string, state);
+
+    (state['createdIds'] as string[]).push(
+      ...(Object.values(state).filter(
+        (value) => typeof value === 'string' && value.startsWith('group'),
+      ) as string[]),
+    );
+  });
+
+  test.afterAll(async ({request}) => {
+    await cleanupGroups(request, state['createdIds'] as string[]);
   });
 
   test('Assign Mapping Rule To Group', async ({request}) => {
@@ -61,7 +74,7 @@ test.describe.parallel('Group Mapping Rules API Tests', () => {
   }) => {
     const stateParams: Record<string, string> = {
       groupId: state['groupId2'] as string,
-      mappingRuleId: mappingRuleFromState('groupId2', state) as string,
+      mappingRuleId: mappingRuleIdFromState('groupId2', state) as string,
     };
 
     await expect(async () => {
@@ -81,8 +94,6 @@ test.describe.parallel('Group Mapping Rules API Tests', () => {
 
   test('Search Mapping Rules For Group', async ({request}) => {
     const groupId: string = state['groupId2'] as string;
-    const expectedBody: Record<string, string> =
-      CREATE_MAPPING_EXPECTED_BODY_USING_GROUP(groupId, state);
 
     await expect(async () => {
       const res = await request.post(
@@ -99,7 +110,7 @@ test.describe.parallel('Group Mapping Rules API Tests', () => {
       assertRequiredFields(json.items[0], mappingRuleRequiredFields);
       assertEqualsForKeys(
         json.items[0],
-        expectedBody,
+        MAPPING_RULE_EXPECTED_BODY_USING_STATE('groupId2', state),
         mappingRuleRequiredFields,
       );
     }).toPass(defaultAssertionOptions);
@@ -137,7 +148,7 @@ test.describe.parallel('Group Mapping Rules API Tests', () => {
     await test.step('Unassign Mapping Rule', async () => {
       const p = {
         groupId: state['groupId3'] as string,
-        mappingRuleId: mappingRuleFromState('groupId3', state) as string,
+        mappingRuleId: mappingRuleIdFromState('groupId3', state) as string,
       };
 
       await expect(async () => {
@@ -172,7 +183,7 @@ test.describe.parallel('Group Mapping Rules API Tests', () => {
   test('Unassign Mapping Rule From Group Unauthorized', async ({request}) => {
     const p = {
       groupId: state['groupId2'] as string,
-      mappingRuleId: mappingRuleFromState('groupId2', state) as string,
+      mappingRuleId: mappingRuleIdFromState('groupId2', state) as string,
     };
     const res = await request.delete(
       buildUrl('/groups/{groupId}/mapping-rules/{mappingRuleId}', p),
@@ -186,7 +197,7 @@ test.describe.parallel('Group Mapping Rules API Tests', () => {
   test('Unassign Mapping Rule From Group Not Found', async ({request}) => {
     const p = {
       groupId: 'invalidGroupId',
-      mappingRuleId: mappingRuleFromState('groupId2', state) as string,
+      mappingRuleId: mappingRuleIdFromState('groupId2', state) as string,
     };
     const res = await request.delete(
       buildUrl('/groups/{groupId}/mapping-rules/{mappingRuleId}', p),
