@@ -36,9 +36,6 @@ public class CamundaSpringProcessTestRuntimeBuilder {
     final CamundaProcessTestRuntimeMode runtimeMode = runtimeConfiguration.getRuntimeMode();
     runtimeBuilder.withRuntimeMode(runtimeMode);
 
-    runtimeBuilder.withCamundaClientRequestTimeout(
-        runtimeConfiguration.getRemote().getClient().getRequestTimeout());
-
     if (runtimeMode == CamundaProcessTestRuntimeMode.MANAGED || runtimeMode == null) {
       configureManagedRuntime(runtimeBuilder, runtimeConfiguration);
 
@@ -58,7 +55,7 @@ public class CamundaSpringProcessTestRuntimeBuilder {
         .withCamundaDockerImageName(runtimeConfiguration.getCamundaDockerImageName())
         .withCamundaEnv(runtimeConfiguration.getCamundaEnvVars())
         .withCamundaLogger(runtimeConfiguration.getCamundaLoggerName())
-        .withMultitenancyEnabled(runtimeConfiguration.isMultitenancyEnabled());
+        .withMultiTenancyEnabled(runtimeConfiguration.isMultiTenancyEnabled());
 
     runtimeConfiguration.getCamundaExposedPorts().forEach(runtimeBuilder::withCamundaExposedPort);
 
@@ -68,7 +65,7 @@ public class CamundaSpringProcessTestRuntimeBuilder {
         .withConnectorsDockerImageVersion(runtimeConfiguration.getConnectorsDockerImageVersion())
         .withConnectorsEnv(runtimeConfiguration.getConnectorsEnvVars())
         .withConnectorsSecrets(runtimeConfiguration.getConnectorsSecrets())
-        .withConnectorsLogger(runtimeConfiguration.getCamundaLoggerName());
+        .withConnectorsLogger(runtimeConfiguration.getConnectorsLoggerName());
 
     runtimeConfiguration
         .getConnectorsExposedPorts()
@@ -96,14 +93,15 @@ public class CamundaSpringProcessTestRuntimeBuilder {
         runtimeConfiguration.getRemote().getClient();
 
     final CamundaClientBuilder clientBuilder = createCamundaClientBuilder(remoteClientProperties);
-    clientBuilder.defaultRequestTimeout(
-        runtimeConfiguration.getRemote().getClient().getRequestTimeout());
 
     if (remoteClientProperties.getRestAddress() != null) {
       clientBuilder.restAddress(remoteClientProperties.getRestAddress());
     }
     if (remoteClientProperties.getGrpcAddress() != null) {
       clientBuilder.grpcAddress(remoteClientProperties.getGrpcAddress());
+    }
+    if (remoteClientProperties.getRequestTimeout() != null) {
+      clientBuilder.defaultRequestTimeout(remoteClientProperties.getRequestTimeout());
     }
 
     return () -> clientBuilder;

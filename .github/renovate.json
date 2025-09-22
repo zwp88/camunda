@@ -18,7 +18,9 @@
     "* 20-23,0-8 * * 1-5",
     "* * * * 0,6"
   ],
-  "labels": ["dependencies"],
+  "labels": [
+    "dependencies"
+  ],
   "vulnerabilityAlerts": {
     "labels": [
       "dependencies",
@@ -85,7 +87,7 @@
     {
       "description": "Identify updates related to builds, tooling, etc. that should be routed to Monorepo DevOps team.",
       "matchManagers": [
-        "regex"
+        "custom.regex"
       ],
       "matchFileNames": [
         ".github/**"
@@ -299,8 +301,7 @@
     },
     {
       "matchManagers": [
-        "npm",
-        "nvm"
+        "npm"
       ],
       "matchPackageNames": [
         "*"
@@ -338,16 +339,6 @@
       "addLabels": [
         "automerge"
       ]
-    },
-    {
-      "description": "Skip maven-surefire-plugin updates, as 3.5.3 version has a bug preventing ArchUnit tests from running. https://issues.apache.org/jira/browse/SUREFIRE-2298",
-      "matchManagers": [
-        "maven"
-      ],
-      "matchPackageNames": [
-        "org.apache.maven.plugins:maven-surefire-plugin"
-      ],
-      "enabled": false
     }
   ],
   "dockerfile": {

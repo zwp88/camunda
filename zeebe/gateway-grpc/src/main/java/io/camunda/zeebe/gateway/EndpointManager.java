@@ -170,7 +170,8 @@ public final class EndpointManager {
       final ServerCallStreamObserver<ActivatedJob> responseObserver) {
     try {
       final JobActivationProperties brokerRequest =
-          RequestMapper.toJobActivationProperties(request);
+          RequestMapper.toJobActivationProperties(request, getClaims());
+
       streamJobsHandler.handle(request.getType(), brokerRequest, responseObserver);
     } catch (final Exception e) {
       responseObserver.onError(e);
@@ -340,7 +341,8 @@ public final class EndpointManager {
       topologyResponseBuilder
           .setClusterSize(topology.getClusterSize())
           .setPartitionsCount(topology.getPartitionsCount())
-          .setReplicationFactor(topology.getReplicationFactor());
+          .setReplicationFactor(topology.getReplicationFactor())
+          .setClusterId(topology.getClusterId());
 
       topology
           .getBrokers()
@@ -489,6 +491,12 @@ public final class EndpointManager {
 
     final BrokerRequest<BrokerResponseT> brokerRequest = requestMapper.apply(grpcRequest);
 
+    brokerRequest.setAuthorization(getClaims());
+
+    return brokerRequest;
+  }
+
+  private Map<String, Object> getClaims() throws Exception {
     final Map<String, Object> claims = new HashMap<>();
 
     // retrieve the user claims from the context and add them to the authorization if present
@@ -514,9 +522,7 @@ public final class EndpointManager {
       claims.put(Authorization.USER_GROUPS_CLAIMS, groupsClaims);
     }
 
-    brokerRequest.setAuthorization(claims);
-
-    return brokerRequest;
+    return claims;
   }
 
   private <BrokerResponseT, GrpcResponseT> void consumeResponse(

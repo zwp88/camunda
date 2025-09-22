@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.camunda.client.CamundaClient;
 import io.camunda.client.CamundaClientBuilder;
+import io.camunda.client.api.JsonMapper;
 import io.camunda.client.api.response.ActivatedJob;
 import io.camunda.client.api.search.response.UserTask;
 import io.camunda.process.test.api.CamundaAssertAwaitBehavior;
@@ -38,7 +39,7 @@ import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,13 +64,18 @@ public class CamundaProcessTestContextImpl implements CamundaProcessTestContext 
   private final Consumer<AutoCloseable> clientCreationCallback;
   private final CamundaManagementClient camundaManagementClient;
 
+  private final JsonMapper jsonMapper;
+  private final io.camunda.zeebe.client.api.JsonMapper zeebeJsonMapper;
   private final CamundaAssertAwaitBehavior awaitBehavior;
 
   public CamundaProcessTestContextImpl(
       final CamundaProcessTestRuntime camundaRuntime,
       final Consumer<AutoCloseable> clientCreationCallback,
       final CamundaManagementClient camundaManagementClient,
-      final CamundaAssertAwaitBehavior awaitBehavior) {
+      final CamundaAssertAwaitBehavior awaitBehavior,
+      final JsonMapper jsonMapper,
+      final io.camunda.zeebe.client.api.JsonMapper zeebeJsonMapper) {
+
     camundaClientBuilderFactory = camundaRuntime.getCamundaClientBuilderFactory();
     camundaRestApiAddress = camundaRuntime.getCamundaRestApiAddress();
     camundaGrpcApiAddress = camundaRuntime.getCamundaGrpcApiAddress();
@@ -77,11 +83,18 @@ public class CamundaProcessTestContextImpl implements CamundaProcessTestContext 
     this.clientCreationCallback = clientCreationCallback;
     this.camundaManagementClient = camundaManagementClient;
     this.awaitBehavior = awaitBehavior;
+    this.jsonMapper = jsonMapper;
+    this.zeebeJsonMapper = zeebeJsonMapper;
   }
 
   @Override
   public CamundaClient createClient() {
-    return createClient(builder -> {});
+    return createClient(
+        builder -> {
+          if (jsonMapper != null) {
+            builder.withJsonMapper(jsonMapper);
+          }
+        });
   }
 
   @Override
@@ -99,7 +112,12 @@ public class CamundaProcessTestContextImpl implements CamundaProcessTestContext 
 
   @Override
   public ZeebeClient createZeebeClient() {
-    return createZeebeClient(builder -> {});
+    return createZeebeClient(
+        builder -> {
+          if (zeebeJsonMapper != null) {
+            builder.withJsonMapper(zeebeJsonMapper);
+          }
+        });
   }
 
   @Override
@@ -158,7 +176,7 @@ public class CamundaProcessTestContextImpl implements CamundaProcessTestContext 
 
   @Override
   public void mockChildProcess(final String childProcessId) {
-    mockChildProcess(childProcessId, new HashMap<>());
+    mockChildProcess(childProcessId, Collections.emptyMap());
   }
 
   @Override
@@ -185,7 +203,7 @@ public class CamundaProcessTestContextImpl implements CamundaProcessTestContext 
 
   @Override
   public void completeJob(final String jobType) {
-    completeJob(jobType, new HashMap<>());
+    completeJob(jobType, Collections.emptyMap());
   }
 
   @Override
@@ -203,7 +221,7 @@ public class CamundaProcessTestContextImpl implements CamundaProcessTestContext 
 
   @Override
   public void throwBpmnErrorFromJob(final String jobType, final String errorCode) {
-    throwBpmnErrorFromJob(jobType, errorCode, new HashMap<>());
+    throwBpmnErrorFromJob(jobType, errorCode, Collections.emptyMap());
   }
 
   @Override
@@ -222,18 +240,18 @@ public class CamundaProcessTestContextImpl implements CamundaProcessTestContext 
   }
 
   @Override
-  public void completeUserTask(final String taskName) {
-    completeUserTask(UserTaskSelectors.byTaskName(taskName), new HashMap<>());
+  public void completeUserTask(final String elementId) {
+    completeUserTask(UserTaskSelectors.byElementId(elementId), Collections.emptyMap());
   }
 
   @Override
-  public void completeUserTask(final String taskName, final Map<String, Object> variables) {
-    completeUserTask(UserTaskSelectors.byTaskName(taskName), variables);
+  public void completeUserTask(final String elementId, final Map<String, Object> variables) {
+    completeUserTask(UserTaskSelectors.byElementId(elementId), variables);
   }
 
   @Override
   public void completeUserTask(final UserTaskSelector userTaskSelector) {
-    completeUserTask(userTaskSelector, new HashMap<>());
+    completeUserTask(userTaskSelector, Collections.emptyMap());
   }
 
   @Override
@@ -259,7 +277,7 @@ public class CamundaProcessTestContextImpl implements CamundaProcessTestContext 
 
           assertThat(userTask)
               .withFailMessage(
-                  "Expected to complete user task [%s] but no job is available.",
+                  "Expected to complete user task [%s] but no user task is available.",
                   userTaskSelector.describe())
               .isPresent();
         });

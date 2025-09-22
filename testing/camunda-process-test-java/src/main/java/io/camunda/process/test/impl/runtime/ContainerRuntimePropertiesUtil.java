@@ -21,11 +21,11 @@ import io.camunda.process.test.api.CamundaClientBuilderFactory;
 import io.camunda.process.test.api.CamundaProcessTestRuntimeMode;
 import io.camunda.process.test.impl.runtime.properties.CamundaContainerRuntimeProperties;
 import io.camunda.process.test.impl.runtime.properties.ConnectorsContainerRuntimeProperties;
+import io.camunda.process.test.impl.runtime.properties.CoverageReportProperties;
 import io.camunda.process.test.impl.runtime.properties.RemoteRuntimeProperties;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -42,14 +42,17 @@ public final class ContainerRuntimePropertiesUtil {
 
   public static final String PROPERTY_NAME_RUNTIME_MODE = "runtimeMode";
   public static final String PROPERTY_NAME_ELASTICSEARCH_VERSION = "elasticsearch.version";
+  public static final String PROPERTY_NAME_MULTI_TENANCY_ENABLED = "multiTenancyEnabled";
 
   private static final String BASE_DIR = "/";
 
   private final CamundaContainerRuntimeProperties camundaContainerRuntimeProperties;
   private final ConnectorsContainerRuntimeProperties connectorsContainerRuntimeProperties;
   private final RemoteRuntimeProperties remoteRuntimeProperties;
+  private final CoverageReportProperties coverageReportProperties;
 
   private final CamundaProcessTestRuntimeMode runtimeMode;
+  private final boolean multiTenancyEnabled;
 
   private final String elasticsearchVersion;
 
@@ -63,6 +66,7 @@ public final class ContainerRuntimePropertiesUtil {
     camundaContainerRuntimeProperties = new CamundaContainerRuntimeProperties(properties);
     connectorsContainerRuntimeProperties = new ConnectorsContainerRuntimeProperties(properties);
     remoteRuntimeProperties = new RemoteRuntimeProperties(properties);
+    coverageReportProperties = new CoverageReportProperties(properties);
 
     runtimeMode =
         getPropertyOrDefault(
@@ -70,6 +74,11 @@ public final class ContainerRuntimePropertiesUtil {
             PROPERTY_NAME_RUNTIME_MODE,
             v -> parseRuntimeModeOrDefault(v, CamundaProcessTestRuntimeMode.MANAGED),
             CamundaProcessTestRuntimeMode.MANAGED);
+
+    multiTenancyEnabled =
+        getPropertyOrDefault(properties, PROPERTY_NAME_MULTI_TENANCY_ENABLED, "false")
+            .trim()
+            .equalsIgnoreCase("true");
   }
 
   public static ContainerRuntimePropertiesUtil readProperties() {
@@ -117,7 +126,7 @@ public final class ContainerRuntimePropertiesUtil {
 
     try {
       return CamundaProcessTestRuntimeMode.valueOf(value.trim().toUpperCase());
-    } catch (IllegalArgumentException e) {
+    } catch (final IllegalArgumentException e) {
       return defaultValue;
     }
   }
@@ -194,10 +203,6 @@ public final class ContainerRuntimePropertiesUtil {
     return remoteRuntimeProperties.getRemoteClientProperties().getRestAddress();
   }
 
-  public Duration getCamundaClientRequestTimeout() {
-    return remoteRuntimeProperties.getRemoteClientProperties().getRequestTimeout();
-  }
-
   public CamundaProcessTestRuntimeMode getRuntimeMode() {
     return runtimeMode;
   }
@@ -208,5 +213,13 @@ public final class ContainerRuntimePropertiesUtil {
 
   public RemoteRuntimeProperties getRemoteRuntimeProperties() {
     return remoteRuntimeProperties;
+  }
+
+  public boolean isMultiTenancyEnabled() {
+    return multiTenancyEnabled;
+  }
+
+  public CoverageReportProperties getCoverageReportProperties() {
+    return coverageReportProperties;
   }
 }

@@ -14,7 +14,7 @@ import io.camunda.db.rdbms.config.VendorDatabaseProperties;
 import io.camunda.db.rdbms.read.service.AuthorizationDbReader;
 import io.camunda.db.rdbms.read.service.BatchOperationDbReader;
 import io.camunda.db.rdbms.read.service.BatchOperationItemDbReader;
-import io.camunda.db.rdbms.read.service.CorrelatedMessageDbReader;
+import io.camunda.db.rdbms.read.service.CorrelatedMessageSubscriptionDbReader;
 import io.camunda.db.rdbms.read.service.DecisionDefinitionDbReader;
 import io.camunda.db.rdbms.read.service.DecisionInstanceDbReader;
 import io.camunda.db.rdbms.read.service.DecisionRequirementsDbReader;
@@ -42,7 +42,7 @@ import io.camunda.db.rdbms.read.service.UserTaskDbReader;
 import io.camunda.db.rdbms.read.service.VariableDbReader;
 import io.camunda.db.rdbms.sql.AuthorizationMapper;
 import io.camunda.db.rdbms.sql.BatchOperationMapper;
-import io.camunda.db.rdbms.sql.CorrelatedMessageMapper;
+import io.camunda.db.rdbms.sql.CorrelatedMessageSubscriptionMapper;
 import io.camunda.db.rdbms.sql.DecisionDefinitionMapper;
 import io.camunda.db.rdbms.sql.DecisionInstanceMapper;
 import io.camunda.db.rdbms.sql.DecisionRequirementsMapper;
@@ -118,8 +118,8 @@ public class RdbmsConfiguration {
   }
 
   @Bean
-  public GroupMemberDbReader groupMemberReader() {
-    return new GroupMemberDbReader();
+  public GroupMemberDbReader groupMemberReader(final GroupMapper groupMapper) {
+    return new GroupMemberDbReader(groupMapper);
   }
 
   @Bean
@@ -172,8 +172,8 @@ public class RdbmsConfiguration {
   }
 
   @Bean
-  public RoleMemberDbReader roleMemberReader() {
-    return new RoleMemberDbReader();
+  public RoleMemberDbReader roleMemberReader(final RoleMapper roleMapper) {
+    return new RoleMemberDbReader(roleMapper);
   }
 
   @Bean
@@ -235,9 +235,9 @@ public class RdbmsConfiguration {
   }
 
   @Bean
-  public CorrelatedMessageDbReader correlatedMessageReader(
-      final CorrelatedMessageMapper correlatedMessageMapper) {
-    return new CorrelatedMessageDbReader(correlatedMessageMapper);
+  public CorrelatedMessageSubscriptionDbReader correlatedMessageSubscriptionReader(
+      final CorrelatedMessageSubscriptionMapper correlatedMessageSubscriptionMapper) {
+    return new CorrelatedMessageSubscriptionDbReader(correlatedMessageSubscriptionMapper);
   }
 
   @Bean
@@ -260,7 +260,7 @@ public class RdbmsConfiguration {
       final UsageMetricTUMapper usageMetricTUMapper,
       final BatchOperationMapper batchOperationMapper,
       final MessageSubscriptionMapper messageSubscriptionMapper,
-      final CorrelatedMessageMapper correlatedMessageMapper) {
+      final CorrelatedMessageSubscriptionMapper correlatedMessageSubscriptionMapper) {
     return new RdbmsWriterFactory(
         sqlSessionFactory,
         exporterPositionMapper,
@@ -280,7 +280,7 @@ public class RdbmsConfiguration {
         usageMetricTUMapper,
         batchOperationMapper,
         messageSubscriptionMapper,
-        correlatedMessageMapper);
+        correlatedMessageSubscriptionMapper);
   }
 
   @Bean
@@ -293,10 +293,12 @@ public class RdbmsConfiguration {
       final DecisionRequirementsDbReader decisionRequirementsReader,
       final FlowNodeInstanceDbReader flowNodeInstanceReader,
       final GroupDbReader groupReader,
+      final GroupMemberDbReader groupMemberReader,
       final IncidentDbReader incidentReader,
       final ProcessDefinitionDbReader processDefinitionReader,
       final ProcessInstanceDbReader processInstanceReader,
       final RoleDbReader roleReader,
+      final RoleMemberDbReader roleMemberReader,
       final TenantDbReader tenantReader,
       final TenantMemberDbReader tenantMemberReader,
       final UserDbReader userReader,
@@ -310,7 +312,7 @@ public class RdbmsConfiguration {
       final UsageMetricsDbReader usageMetricReader,
       final UsageMetricTUDbReader usageMetricTUDbReader,
       final MessageSubscriptionDbReader messageSubscriptionReader,
-      final CorrelatedMessageDbReader correlatedMessageReader) {
+      final CorrelatedMessageSubscriptionDbReader correlatedMessageSubscriptionReader) {
     return new RdbmsService(
         rdbmsWriterFactory,
         authorizationReader,
@@ -319,11 +321,13 @@ public class RdbmsConfiguration {
         decisionRequirementsReader,
         flowNodeInstanceReader,
         groupReader,
+        groupMemberReader,
         incidentReader,
         processDefinitionReader,
         processInstanceReader,
         variableReader,
         roleReader,
+        roleMemberReader,
         tenantReader,
         tenantMemberReader,
         userReader,
@@ -337,6 +341,6 @@ public class RdbmsConfiguration {
         usageMetricReader,
         usageMetricTUDbReader,
         messageSubscriptionReader,
-        correlatedMessageReader);
+        correlatedMessageSubscriptionReader);
   }
 }

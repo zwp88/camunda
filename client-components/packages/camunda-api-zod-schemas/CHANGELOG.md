@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.0.4
+
+### 🩹 Fixes
+
+- rename decisionInstanceSchema properties to match the api spec ([#38357](https://github.com/camunda/camunda/pull/38357))
+
+### ❤️ Contributors
+
+- Christoph Fricke ([@christoph-fricke](https://github.com/christoph-fricke))
+
+## v0.0.3
+
+### 🩹 Fixes
+
+- handle partially completed and failed batch operation states ([#37634](https://github.com/camunda/camunda/pull/37907))
+
+### ❤️ Contributors
+
+- Patrick Dehn ([@pedesen](https://github.com/pedesen))
+
 ## v0.0.2
 
 ### 🩹 Fixes

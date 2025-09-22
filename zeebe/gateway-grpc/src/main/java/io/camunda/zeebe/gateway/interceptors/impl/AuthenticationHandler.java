@@ -85,7 +85,7 @@ public sealed interface AuthenticationHandler {
       }
 
       var context = Context.current();
-      if (oidcAuthenticationConfiguration.getGroupsClaim() != null) {
+      if (oidcAuthenticationConfiguration.isGroupsClaimConfigured()) {
         try {
           context = context.withValue(GROUPS_CLAIMS, oidcGroupsLoader.load(token.getClaims()));
         } catch (final Exception e) {
@@ -106,16 +106,17 @@ public sealed interface AuthenticationHandler {
                 .withCause(e));
       }
 
-      if (principals.username() != null) {
-        return Either.right(
-            context
-                .withValue(USERNAME, principals.username())
-                .withValue(USER_CLAIMS, token.getClaims()));
-      }
       if (principals.clientId() != null) {
         return Either.right(
             context
                 .withValue(CLIENT_ID, principals.clientId())
+                .withValue(USER_CLAIMS, token.getClaims()));
+      }
+
+      if (principals.username() != null) {
+        return Either.right(
+            context
+                .withValue(USERNAME, principals.username())
                 .withValue(USER_CLAIMS, token.getClaims()));
       }
 

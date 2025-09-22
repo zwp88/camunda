@@ -8,10 +8,7 @@
 package io.camunda.authentication.converter;
 
 import static io.camunda.security.auth.OidcGroupsLoader.DERIVED_GROUPS_ARE_NOT_STRING_ARRAY;
-import static io.camunda.zeebe.auth.Authorization.AUTHORIZED_CLIENT_ID;
-import static io.camunda.zeebe.auth.Authorization.AUTHORIZED_USERNAME;
 import static io.camunda.zeebe.auth.Authorization.USER_GROUPS_CLAIMS;
-import static io.camunda.zeebe.auth.Authorization.USER_TOKEN_CLAIMS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,13 +48,13 @@ public class TokenClaimsConverterTest {
 
   public static final String GROUP1_NAME = "idp-g1";
   public static final String GROUP2_NAME = "idp-g2";
+  private static final String USERNAME_CLAIM = "email";
+  private static final String APPLICATION_ID_CLAIM = "client-id";
   private TokenClaimsConverter converter;
   private MembershipService membershipService;
 
   @Nested
   class ClientIdClaimConfiguration {
-
-    private static final String APPLICATION_ID_CLAIM = "client-id";
 
     @Mock private MappingRuleServices mappingRuleServices;
     @Mock private TenantServices tenantServices;
@@ -73,7 +70,7 @@ public class TokenClaimsConverterTest {
 
       when(securityConfiguration.getAuthentication()).thenReturn(authenticationConfiguration);
       when(authenticationConfiguration.getOidc()).thenReturn(oidcAuthenticationConfiguration);
-      when(oidcAuthenticationConfiguration.getUsernameClaim()).thenReturn("not-tested");
+      when(oidcAuthenticationConfiguration.getUsernameClaim()).thenReturn(USERNAME_CLAIM);
       when(oidcAuthenticationConfiguration.getClientIdClaim()).thenReturn(APPLICATION_ID_CLAIM);
 
       when(mappingRuleServices.withAuthentication(any(CamundaAuthentication.class)))
@@ -110,7 +107,7 @@ public class TokenClaimsConverterTest {
       assertThat(exception.getMessage())
           .isEqualTo(
               "Neither username claim (%s) nor clientId claim (%s) could be found in the claims. Please check your OIDC configuration."
-                  .formatted("not-tested", APPLICATION_ID_CLAIM));
+                  .formatted(USERNAME_CLAIM, APPLICATION_ID_CLAIM));
     }
 
     @Test
@@ -143,15 +140,24 @@ public class TokenClaimsConverterTest {
       // then
       assertThat(camundaAuthentication).isNotNull();
       assertThat(camundaAuthentication.authenticatedClientId()).isEqualTo("app-1");
-      assertThat(camundaAuthentication.claims()).containsEntry(AUTHORIZED_CLIENT_ID, "app-1");
-      assertThat(camundaAuthentication.claims()).containsEntry(USER_TOKEN_CLAIMS, claims);
+      assertThat(camundaAuthentication.claims()).isEqualTo(claims);
+    }
+
+    @Test
+    public void shouldPreferClientIdOverUsername() {
+      final Map<String, Object> claims =
+          Map.of(USERNAME_CLAIM, "ignored", APPLICATION_ID_CLAIM, "preferred");
+
+      final var camundaAuthentication = converter.convert(claims);
+
+      assertThat(camundaAuthentication).isNotNull();
+      assertThat(camundaAuthentication.authenticatedClientId()).isEqualTo("preferred");
+      assertThat(camundaAuthentication.authenticatedUsername()).isNull();
     }
   }
 
   @Nested
   class UsernameClaimConfiguration {
-
-    private static final String USERNAME_CLAIM = "email";
 
     @Mock private MappingRuleServices mappingRuleServices;
     @Mock private TenantServices tenantServices;
@@ -276,8 +282,7 @@ public class TokenClaimsConverterTest {
       // then
       assertThat(authentication).isNotNull();
       assertThat(authentication.authenticatedUsername()).isEqualTo("foo@camunda.test");
-      assertThat(authentication.claims()).containsEntry(AUTHORIZED_USERNAME, "foo@camunda.test");
-      assertThat(authentication.claims()).containsEntry(USER_TOKEN_CLAIMS, claims);
+      assertThat(authentication.claims()).isEqualTo(claims);
       assertThat(authentication.authenticatedMappingRuleIds())
           .containsExactlyInAnyOrder("test-id", "test-id-2");
       assertThat(authentication.authenticatedRoleIds())
@@ -370,6 +375,7 @@ public class TokenClaimsConverterTest {
       when(authenticationConfiguration.getOidc()).thenReturn(oidcAuthenticationConfiguration);
       when(oidcAuthenticationConfiguration.getUsernameClaim()).thenReturn("sub");
       when(oidcAuthenticationConfiguration.getClientIdClaim()).thenReturn("not-tested");
+      when(oidcAuthenticationConfiguration.isGroupsClaimConfigured()).thenReturn(true);
       when(oidcAuthenticationConfiguration.getGroupsClaim()).thenReturn(GROUPS_CLAIM);
       when(mappingRuleServices.withAuthentication(any(CamundaAuthentication.class)))
           .thenReturn(mappingRuleServices);
@@ -409,8 +415,7 @@ public class TokenClaimsConverterTest {
       // then
       assertThat(authentication.authenticatedGroupIds())
           .containsExactlyInAnyOrder(GROUP1_NAME, GROUP2_NAME);
-      assertThat((List<String>) authentication.claims().get(USER_GROUPS_CLAIMS))
-          .containsExactlyInAnyOrder(GROUP1_NAME, GROUP2_NAME);
+      assertThat(authentication.claims()).isEqualTo(claims);
     }
 
     @Test
@@ -434,8 +439,7 @@ public class TokenClaimsConverterTest {
 
       // then
       assertThat(authentication.authenticatedGroupIds()).containsExactly(GROUP1_NAME);
-      assertThat((List<String>) authentication.claims().get(USER_GROUPS_CLAIMS))
-          .containsExactly(GROUP1_NAME);
+      assertThat(authentication.claims()).isEqualTo(claims);
     }
 
     @Test

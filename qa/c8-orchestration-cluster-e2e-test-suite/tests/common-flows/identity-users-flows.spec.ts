@@ -10,7 +10,7 @@ import {test} from 'fixtures';
 import {expect} from '@playwright/test';
 import {captureScreenshot, captureFailureVideo} from '@setup';
 import {relativizePath, Paths} from 'utils/relativizePath';
-import {createTestData, createComponentAuthorization} from 'utils/constants';
+import {createTestData} from 'utils/constants';
 import {navigateToApp} from '@pages/UtilitiesPage';
 import {verifyAccess} from 'utils/accessVerification';
 import {waitForItemInList} from 'utils/waitForItemInList';

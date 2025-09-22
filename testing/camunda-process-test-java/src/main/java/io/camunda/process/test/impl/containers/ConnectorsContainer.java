@@ -61,12 +61,29 @@ public class ConnectorsContainer extends GenericContainer<ConnectorsContainer> {
     return this;
   }
 
-  public ConnectorsContainer withMultitenancy() {
-    withEnv(ContainerRuntimeEnvs.CAMUNDA_CLIENT_AUTH_METHOD, "basic")
-        .withEnv(ContainerRuntimeEnvs.CAMUNDA_CLIENT_AUTH_USERNAME, "demo")
-        .withEnv(ContainerRuntimeEnvs.CAMUNDA_CLIENT_AUTH_PASSWORD, "demo")
-        .withEnv(ContainerRuntimeEnvs.CAMUNDA_CLIENT_TENANTID, "<default>")
-        .withEnv(ContainerRuntimeEnvs.CAMUNDA_CLIENT_WORKER_DEFAULTS_TENANTIDS, "<default>")
+  public ConnectorsContainer withMultiTenancy() {
+    withEnv(
+            ContainerRuntimeEnvs.CONNECTORS_ENV_CAMUNDA_CLIENT_AUTH_METHOD,
+            MultiTenancyConfiguration.CAMUNDA_CLIENT_AUTH_METHOD)
+        .withEnv(
+            ContainerRuntimeEnvs.CONNECTORS_ENV_CAMUNDA_CLIENT_AUTH_USERNAME,
+            MultiTenancyConfiguration.CAMUNDA_CLIENT_AUTH_USERNAME)
+        .withEnv(
+            ContainerRuntimeEnvs.CONNECTORS_ENV_CAMUNDA_CLIENT_AUTH_PASSWORD,
+            MultiTenancyConfiguration.CAMUNDA_CLIENT_AUTH_PASSWORD)
+        .withEnv(
+            ContainerRuntimeEnvs.CONNECTORS_ENV_CAMUNDA_CLIENT_TENANTID,
+            MultiTenancyConfiguration.CAMUNDA_CLIENT_TENANTID)
+        .withEnv(
+            ContainerRuntimeEnvs.CONNECTORS_ENV_CAMUNDA_CLIENT_WORKER_DEFAULTS_TENANTIDS,
+            MultiTenancyConfiguration.CAMUNDA_CLIENT_WORKER_DEFAULTS_TENANTIDS)
+        /*
+         * Basic Auth has a very limited request throughput, requiring tests with multitenancy to have an increased
+         * polling interval so as to not cause timeout exceptions.
+         */
+        .withEnv(
+            ContainerRuntimeEnvs.CONNECTORS_ENV_POLLING_INTERVAL,
+            MultiTenancyConfiguration.POLLING_INTERVAL)
         .waitingFor(newBasicAuthWaitStrategy());
 
     return this;
@@ -75,8 +92,8 @@ public class ConnectorsContainer extends GenericContainer<ConnectorsContainer> {
   public static HttpWaitStrategy newBasicAuthConnectorsReadyCheck() {
     return newDefaultConnectorsReadyCheck()
         .withBasicCredentials(
-            MultitenancyConfiguration.CAMUNDA_CLIENT_AUTH_USERNAME,
-            MultitenancyConfiguration.CAMUNDA_CLIENT_AUTH_PASSWORD);
+            MultiTenancyConfiguration.CAMUNDA_CLIENT_AUTH_USERNAME,
+            MultiTenancyConfiguration.CAMUNDA_CLIENT_AUTH_PASSWORD);
   }
 
   public static HttpWaitStrategy newDefaultConnectorsReadyCheck() {
@@ -113,13 +130,14 @@ public class ConnectorsContainer extends GenericContainer<ConnectorsContainer> {
    * Contains all configuration values required for running a self-managed, multitenancy-enabled
    * Camunda connectors runtime.
    */
-  public static class MultitenancyConfiguration {
+  public static class MultiTenancyConfiguration {
     private static final String CAMUNDA_CLIENT_AUTH_METHOD = "basic";
     private static final String CAMUNDA_CLIENT_AUTH_USERNAME =
-        CamundaContainer.MultitenancyConfiguration.MULTITENANCY_USER_USERNAME;
+        CamundaContainer.MultiTenancyConfiguration.MULTITENANCY_USER_USERNAME;
     private static final String CAMUNDA_CLIENT_AUTH_PASSWORD =
-        CamundaContainer.MultitenancyConfiguration.MULTITENANCY_USER_PASSWORD;
+        CamundaContainer.MultiTenancyConfiguration.MULTITENANCY_USER_PASSWORD;
     private static final String CAMUNDA_CLIENT_TENANTID = "<default>";
     private static final String CAMUNDA_CLIENT_WORKER_DEFAULTS_TENANTIDS = "<default>";
+    private static final String POLLING_INTERVAL = "1000";
   }
 }

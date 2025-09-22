@@ -10,6 +10,7 @@ package io.camunda.configuration;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.util.unit.DataSize;
 
 /** Network configuration for cluster communication. */
@@ -86,7 +87,9 @@ public class Network {
   private Duration heartbeatInterval = Duration.ofSeconds(5);
 
   /** Sets the internal api configuration */
-  private InternalApi internalApi = new InternalApi();
+  @NestedConfigurationProperty private InternalApi internalApi = new InternalApi();
+
+  @NestedConfigurationProperty private CommandApi commandApi = new CommandApi();
 
   public String getHost() {
     return UnifiedConfigurationHelper.validateLegacyConfiguration(
@@ -198,6 +201,14 @@ public class Network {
 
   public void setInternalApi(final InternalApi internalApi) {
     this.internalApi = internalApi;
+  }
+
+  public CommandApi getCommandApi() {
+    return commandApi;
+  }
+
+  public void setCommandApi(final CommandApi commandApi) {
+    this.commandApi = commandApi;
   }
 
   @Override

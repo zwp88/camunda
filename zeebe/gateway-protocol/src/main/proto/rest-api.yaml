@@ -4341,27 +4341,27 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
-  /correlated-messages/search:
+  /correlated-message-subscriptions/search:
     post:
       tags:
-        - Message
-      operationId: searchCorrelatedMessages
-      summary: Search correlated messages
+        - Message subscription
+      operationId: searchCorrelatedMessageSubscriptions
+      summary: Search correlated message subscriptions
       description: |
-        Search for correlated messages based on given criteria.
+        Search for correlated message subscriptions based on given criteria.
       requestBody:
         required: false
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CorrelatedMessageSearchQuery"
+              $ref: "#/components/schemas/CorrelatedMessageSubscriptionSearchQuery"
       responses:
         "200":
-          description: The correlated messages search result.
+          description: The correlated message subscriptions search result.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CorrelatedMessageSearchQueryResult"
+                $ref: "#/components/schemas/CorrelatedMessageSubscriptionSearchQueryResult"
         "400":
           $ref: "#/components/responses/InvalidData"
         "401":
@@ -4463,21 +4463,11 @@ paths:
 
         The caller must provide a file name for each document, which will be used in case of a multi-status response
         to identify which documents failed to upload. The file name can be provided in the `Content-Disposition` header
-        of the file part or in the `fileName` field of the metadata, which can be configured with
-        the `X-Document-Metadata` header for each file part. If both are provided, the `fileName` metadata field
-        takes precedence. For example, given the following headers for a file:
-        ```
-        Content-Disposition: form-data; name="files"; filename="bill.pdf"
-        X-Document-Metadata: {"fileName": "invoice.pdf", "size": 1234567}
-        ```
-
-        The filename will be `invoice.pdf`, but in the following example:
-        ```
-        Content-Disposition: form-data; name="files"; filename="bill.pdf"
-        X-Document-Metadata: {"size": 1234567}
-        ```
-
-        it would be `bill.pdf`.
+        of the file part or in the `fileName` field of the metadata. You can add a parallel array of metadata objects. These
+        are matched with the files based on index, and must have the same length as the files array.
+        To pass homogenous metadata for all files, spread the metadata over the metadata array.
+        A filename value provided explicitly via the metadata array in the request overrides the `Content-Disposition` header
+        of the file part.
 
         In case of a multi-status response, the response body will contain a list of `DocumentBatchProblemDetail` objects,
         each of which contains the file name of the document that failed to upload and the reason for the failure.
@@ -4504,6 +4494,12 @@ paths:
                   items:
                     type: string
                     format: binary
+                  minItems: 1
+                metadataList:
+                  type: array
+                  description: Optional JSON array; index aligns with each files entry. Takes precedence over per-file X-Document-Metadata headers when provided.
+                  items:
+                    $ref: "#/components/schemas/DocumentMetadata"
               required:
                 - files
             encoding:
@@ -4950,19 +4946,19 @@ paths:
         - name: startTime
           in: query
           required: true
-          description: The start date for usage metrics, including this date.
+          description: The start date for usage metrics, including this date. Value in ISO 8601 format.
+          example: "2025-06-07T13:14:15Z"
           schema:
             type: string
-            format: date
-            example: "2025-06-07T13:14:15Z"
+            format: date-time
         - name: endTime
           in: query
           required: true
-          description: The end date for usage metrics, excluding this date.
+          description: The end date for usage metrics, excluding this date. Value in ISO 8601 format.
+          example: "2026-07-08T13:14:15Z"
           schema:
             type: string
-            format: date
-            example: "2026-07-08T13:14:15Z"
+            format: date-time
         - name: tenantId
           in: query
           required: false
@@ -7145,17 +7141,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/IncidentResult"
-    CorrelatedMessageSearchQueryResult:
+    CorrelatedMessageSubscriptionSearchQueryResult:
       type: object
       allOf:
         - $ref: "#/components/schemas/SearchQueryResponse"
       properties:
         items:
-          description: The matching correlated messages.
+          description: The matching correlated message subscriptions.
           type: array
           items:
-            $ref: "#/components/schemas/CorrelatedMessageResult"
-    CorrelatedMessageResult:
+            $ref: "#/components/schemas/CorrelatedMessageSubscriptionResult"
+    CorrelatedMessageSubscriptionResult:
       type: object
       properties:
         correlationKey:
@@ -7182,19 +7178,19 @@ components:
           type: integer
           format: int32
         processDefinitionId:
-          description: The process definition ID associated with this correlated message.
+          description: The process definition ID associated with this correlated message subscription.
           type: string
         processDefinitionKey:
-          description: The process definition key associated with this correlated message.
+          description: The process definition key associated with this correlated message subscription.
           type: string
         processInstanceKey:
-          description: The process instance key associated with this correlated message.
+          description: The process instance key associated with this correlated message subscription.
           type: string
         subscriptionKey:
           description: The subscription key that received the message.
           type: string
         tenantId:
-          description: The tenant ID associated with this correlated message.
+          description: The tenant ID associated with this correlated message subscription.
           type: string
       required:
         - correlationKey
@@ -7207,7 +7203,7 @@ components:
         - processInstanceKey
         - subscriptionKey
         - tenantId
-    CorrelatedMessageSearchQuery:
+    CorrelatedMessageSubscriptionSearchQuery:
       type: object
       allOf:
         - $ref: "#/components/schemas/SearchQueryRequest"
@@ -7216,12 +7212,12 @@ components:
           description: Sort field criteria.
           type: array
           items:
-            $ref: "#/components/schemas/CorrelatedMessageSearchQuerySortRequest"
+            $ref: "#/components/schemas/CorrelatedMessageSubscriptionSearchQuerySortRequest"
         filter:
-          description: The correlated messages search filters.
+          description: The correlated message subscriptions search filters.
           allOf:
-            - $ref: "#/components/schemas/CorrelatedMessageFilter"
-    CorrelatedMessageSearchQuerySortRequest:
+            - $ref: "#/components/schemas/CorrelatedMessageSubscriptionFilter"
+    CorrelatedMessageSubscriptionSearchQuerySortRequest:
       type: object
       properties:
         field:
@@ -7244,8 +7240,8 @@ components:
           $ref: "#/components/schemas/SortOrderEnum"
       required:
         - field
-    CorrelatedMessageFilter:
-      description: Correlated messages search filter.
+    CorrelatedMessageSubscriptionFilter:
+      description: Correlated message subscriptions search filter.
       type: object
       properties:
         correlationKey:
@@ -7277,15 +7273,15 @@ components:
           allOf:
             - $ref: "#/components/schemas/IntegerFilterProperty"
         processDefinitionId:
-          description: The process definition ID associated with this correlated message.
+          description: The process definition ID associated with this correlated message subscription.
           allOf:
             - $ref: "#/components/schemas/StringFilterProperty"
         processDefinitionKey:
-          description: The process definition key associated with this correlated message.
+          description: The process definition key associated with this correlated message subscription.
           allOf:
             - $ref: "#/components/schemas/BasicStringFilterProperty"
         processInstanceKey:
-          description: The process instance key associated with this correlated message.
+          description: The process instance key associated with this correlated message subscription.
           allOf:
             - $ref: "#/components/schemas/BasicStringFilterProperty"
         subscriptionKey:
@@ -7293,7 +7289,7 @@ components:
           allOf:
             - $ref: "#/components/schemas/BasicStringFilterProperty"
         tenantId:
-          description: The tenant ID associated with this correlated message.
+          description: The tenant ID associated with this correlated message subscription.
           allOf:
             - $ref: "#/components/schemas/StringFilterProperty"
     MessageSubscriptionSearchQueryResult:
@@ -8610,6 +8606,10 @@ components:
           nullable: true
           items:
             $ref: "#/components/schemas/BrokerInfo"
+        clusterId:
+          description: The cluster Id.
+          type: string
+          nullable: true
         clusterSize:
           description: The number of brokers in the cluster.
           type: integer

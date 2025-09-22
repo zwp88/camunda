@@ -67,17 +67,21 @@ public class BasicAuthWebSecurityConfigParameterizedTest {
         getProperties("camunda.security.authentication.oidc.groups-claim", "group"),
         getProperties("camunda.security.authentication.oidc.username-claim", "sub1"),
         getProperties("camunda.security.authentication.oidc.grant-type", "client_credentials"),
+        getProperties("camunda.security.authentication.oidc.assertion.kidSource", "certificate"),
+        getProperties("camunda.security.authentication.oidc.assertion.kidDigestAlgorithm", "sha1"),
+        getProperties("camunda.security.authentication.oidc.assertion.kidEncoding", "hex"),
+        getProperties("camunda.security.authentication.oidc.assertion.kidCase", "upper"),
         getProperties(
             "camunda.security.authentication.oidc.client-authentication-method", "private_key_jwt"),
         getProperties(
-            "camunda.security.authentication.oidc.assertion-keystore.path",
+            "camunda.security.authentication.oidc.assertion.keystore.path",
             "/path/to/keystore.p12"),
         getProperties(
-            "camunda.security.authentication.oidc.assertion-keystore.password", "keystorepass"),
+            "camunda.security.authentication.oidc.assertion.keystore.password", "keystorepass"),
         getProperties(
-            "camunda.security.authentication.oidc.assertion-keystore.key-alias", "myalias"),
+            "camunda.security.authentication.oidc.assertion.keystore.key-alias", "myalias"),
         getProperties(
-            "camunda.security.authentication.oidc.assertion-keystore.key-password", "keypass"));
+            "camunda.security.authentication.oidc.assertion.keystore.key-password", "keypass"));
   }
 
   private Map<String, Object> getProperties(final String property, final String value) {
@@ -104,7 +108,13 @@ public class BasicAuthWebSecurityConfigParameterizedTest {
     @Bean
     public UserServices userServices() {
       return new UserServices(
-          null, null, null, null, null, new ApiServicesExecutorProvider(ForkJoinPool.commonPool()));
+          null,
+          null,
+          null,
+          null,
+          null,
+          new ApiServicesExecutorProvider(ForkJoinPool.commonPool()),
+          null);
     }
 
     @Bean

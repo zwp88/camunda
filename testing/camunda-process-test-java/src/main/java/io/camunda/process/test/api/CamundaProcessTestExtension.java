@@ -16,12 +16,12 @@
 package io.camunda.process.test.api;
 
 import io.camunda.client.CamundaClient;
-import io.camunda.client.CredentialsProvider;
+import io.camunda.client.api.JsonMapper;
 import io.camunda.process.test.api.coverage.ProcessCoverage;
 import io.camunda.process.test.api.coverage.ProcessCoverageBuilder;
 import io.camunda.process.test.impl.assertions.CamundaDataSource;
 import io.camunda.process.test.impl.client.CamundaManagementClient;
-import io.camunda.process.test.impl.containers.CamundaContainer;
+import io.camunda.process.test.impl.containers.CamundaContainer.MultiTenancyConfiguration;
 import io.camunda.process.test.impl.extension.CamundaProcessTestContextImpl;
 import io.camunda.process.test.impl.runtime.CamundaProcessTestContainerRuntime;
 import io.camunda.process.test.impl.runtime.CamundaProcessTestRuntime;
@@ -36,6 +36,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -103,6 +104,9 @@ public class CamundaProcessTestExtension
   private CamundaProcessTestRuntime runtime;
   private CamundaProcessTestResultCollector processTestResultCollector;
 
+  private JsonMapper jsonMapper;
+  private io.camunda.zeebe.client.api.JsonMapper zeebeJsonMapper;
+
   private CamundaManagementClient camundaManagementClient;
   private CamundaProcessTestContext camundaProcessTestContext;
 
@@ -147,31 +151,48 @@ public class CamundaProcessTestExtension
             runtime,
             createdClients::add,
             camundaManagementClient,
-            CamundaAssert.getAwaitBehavior());
+            CamundaAssert.getAwaitBehavior(),
+            jsonMapper,
+            zeebeJsonMapper);
 
     // create process coverage
     processCoverage =
         processCoverageBuilder
             .testClass(context.getRequiredTestClass())
             .dataSource(() -> new CamundaDataSource(camundaProcessTestContext.createClient()))
+            .reportDirectory(runtimeBuilder.getCoverageReportDirectory())
+            .excludeProcessDefinitionIds(runtimeBuilder.getCoverageExcludedProcesses())
             .build();
 
     // put in store
     final Store store = context.getStore(NAMESPACE);
     store.put(STORE_KEY_RUNTIME, runtime);
     store.put(STORE_KEY_CONTEXT, camundaProcessTestContext);
+
+    // initialize json mapper
+    initializeJsonMapper(jsonMapper, zeebeJsonMapper);
   }
 
   private CamundaManagementClient createManagementClient(
       final CamundaProcessTestRuntimeBuilder runtimeBuilder) {
-    if (runtimeBuilder.isMultitenancyEnabled()) {
+    if (runtimeBuilder.isMultiTenancyEnabled()) {
       return CamundaManagementClient.createAuthenticatedClient(
           runtime.getCamundaMonitoringApiAddress(),
           runtime.getCamundaRestApiAddress(),
-          CamundaContainer.MultitenancyConfiguration.getBasicAuthCredentials());
+          MultiTenancyConfiguration.getBasicAuthCredentials());
     } else {
       return CamundaManagementClient.createClient(
           runtime.getCamundaMonitoringApiAddress(), runtime.getCamundaRestApiAddress());
+    }
+  }
+
+  private void initializeJsonMapper(
+      final JsonMapper jsonMapper, final io.camunda.zeebe.client.api.JsonMapper zeebeJsonMapper) {
+
+    if (jsonMapper != null) {
+      CamundaAssert.setJsonMapper(jsonMapper);
+    } else if (zeebeJsonMapper != null) {
+      CamundaAssert.setJsonMapper(zeebeJsonMapper);
     }
   }
 
@@ -511,56 +532,62 @@ public class CamundaProcessTestExtension
   }
 
   /**
-   * Provide a custom credentials provider for a remote Camunda runtime.
+   * Configures the coverage report to exclude the given processes.
    *
-   * @param credentialsProvider the credentials provider for the remote runtime.
+   * @param processDefinitionIds the IDs of the process definitions to exclude
    * @return the extension builder
    */
-  public CamundaProcessTestExtension withRemoteCamundaClientCredentialsProvider(
-      final CredentialsProvider credentialsProvider) {
-    runtimeBuilder.withCredentialsProvider(credentialsProvider);
-    return this;
-  }
-
-  /**
-   * Configure the request timeout for the Camunda Client
-   *
-   * @param requestTimeout time to wait before the request times out
-   * @return the extension builder
-   */
-  public CamundaProcessTestExtension withClientRequestTimeout(final Duration requestTimeout) {
-    runtimeBuilder.withCamundaClientRequestTimeout(requestTimeout);
-    return this;
-  }
-
-  /**
-   * Specifies process definition keys that should be excluded from coverage analysis. These
-   * processes will not be considered when calculating coverage metrics.
-   *
-   * @param processDefinitionIds an array of process definition ids to exclude
-   * @return the extension builder
-   */
-  public CamundaProcessTestExtension excludeProcessDefinitionIds(
+  public CamundaProcessTestExtension withCoverageExcludedProcesses(
       final String... processDefinitionIds) {
-    processCoverageBuilder.excludeProcessDefinitionIds(processDefinitionIds);
+    runtimeBuilder.withCoverageExcludedProcesses(Arrays.asList(processDefinitionIds));
     return this;
   }
 
   /**
-   * Specifies the output directory for coverage reports. Coverage reports will be generated and
-   * saved to this directory after test execution.
+   * Configures the output directory for the coverage reports. By default, the directory is {@code
+   * target/coverage-report/}.
    *
-   * @param reportDirectory the directory path where reports should be saved (defaults to
-   *     "target/process-test-coverage/")
+   * @param reportDirectory the directory to save the reports
    * @return the extension builder
    */
   public CamundaProcessTestExtension withCoverageReportDirectory(final String reportDirectory) {
-    processCoverageBuilder.reportDirectory(reportDirectory);
+    runtimeBuilder.withCoverageReportDirectory(reportDirectory);
     return this;
   }
 
-  public CamundaProcessTestExtension withMultitenancyEnabled() {
-    runtimeBuilder.withMultitenancyEnabled(true);
+  /**
+   * Enable or disable multi-tenancy in the runtime. By default, multi-tenancy is disabled.
+   *
+   * @param enabled set {@code true} to enable multi-tenancy
+   * @return the extension builder
+   */
+  public CamundaProcessTestExtension withMultiTenancyEnabled(final boolean enabled) {
+    runtimeBuilder.withMultiTenancyEnabled(enabled);
+    return this;
+  }
+
+  /**
+   * Configure the JSON mapper for the client and the assertions.
+   *
+   * @param jsonMapper the JSON mapper to use
+   * @return the extension builder
+   */
+  public CamundaProcessTestExtension withJsonMapper(final JsonMapper jsonMapper) {
+    this.jsonMapper = jsonMapper;
+    return this;
+  }
+
+  /**
+   * Configure the JSON mapper for the client and the assertions.
+   *
+   * @param jsonMapper the JSON mapper to use
+   * @return the extension builder
+   * @deprecated for removal, use {@link #withJsonMapper(JsonMapper)} instead.
+   */
+  @Deprecated
+  public CamundaProcessTestExtension withJsonMapper(
+      final io.camunda.zeebe.client.api.JsonMapper jsonMapper) {
+    zeebeJsonMapper = jsonMapper;
     return this;
   }
 

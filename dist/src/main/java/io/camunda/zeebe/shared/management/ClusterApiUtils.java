@@ -33,6 +33,7 @@ import io.camunda.zeebe.dynamic.config.state.ClusterConfigurationChangeOperation
 import io.camunda.zeebe.dynamic.config.state.ClusterConfigurationChangeOperation.PartitionChangeOperation.PartitionReconfigurePriorityOperation;
 import io.camunda.zeebe.dynamic.config.state.ClusterConfigurationChangeOperation.ScaleUpOperation.AwaitRedistributionCompletion;
 import io.camunda.zeebe.dynamic.config.state.ClusterConfigurationChangeOperation.ScaleUpOperation.AwaitRelocationCompletion;
+import io.camunda.zeebe.dynamic.config.state.ClusterConfigurationChangeOperation.ScaleUpOperation.StartPartitionScaleUp;
 import io.camunda.zeebe.dynamic.config.state.ClusterConfigurationChangeOperation.UpdateRoutingState;
 import io.camunda.zeebe.dynamic.config.state.CompletedChange;
 import io.camunda.zeebe.dynamic.config.state.DynamicPartitionConfig;
@@ -218,6 +219,10 @@ final class ClusterApiUtils {
               .brokerId(Integer.parseInt(deleteExporterOperation.memberId().id()))
               .partitionId(deleteExporterOperation.partitionId())
               .exporterId(deleteExporterOperation.exporterId());
+      case final StartPartitionScaleUp startScaleUp ->
+          new Operation()
+              .operation(OperationEnum.START_PARTITION_SCALE_UP)
+              .brokerId(Integer.parseInt(startScaleUp.memberId().id()));
       case final PartitionBootstrapOperation bootstrapOperation ->
           new Operation()
               .operation(OperationEnum.PARTITION_BOOTSTRAP)
@@ -328,6 +333,7 @@ final class ClusterApiUtils {
     topology
         .routingState()
         .ifPresent(routingState -> response.routing(mapRoutingState(routingState)));
+    topology.clusterId().ifPresent(response::clusterId);
     return response;
   }
 
@@ -404,8 +410,7 @@ final class ClusterApiUtils {
     return completedOperations.stream().map(ClusterApiUtils::mapCompletedOperation).toList();
   }
 
-  private static TopologyChangeCompletedInner mapCompletedOperation(
-      final CompletedOperation operation) {
+  static TopologyChangeCompletedInner mapCompletedOperation(final CompletedOperation operation) {
     final var mappedOperation =
         switch (operation.operation()) {
           case final MemberJoinOperation join ->
@@ -467,6 +472,31 @@ final class ClusterApiUtils {
                   .brokerId(Integer.parseInt(deleteExporterOperation.memberId().id()))
                   .partitionId(deleteExporterOperation.partitionId())
                   .exporterId(deleteExporterOperation.exporterId());
+          case final StartPartitionScaleUp startScaleUp ->
+              new TopologyChangeCompletedInner()
+                  .operation(TopologyChangeCompletedInner.OperationEnum.START_PARTITION_SCALE_UP)
+                  .brokerId(Integer.parseInt(startScaleUp.memberId().id()));
+          case final PartitionBootstrapOperation bootstrapOperation ->
+              new TopologyChangeCompletedInner()
+                  .operation(TopologyChangeCompletedInner.OperationEnum.PARTITION_BOOTSTRAP)
+                  .brokerId(Integer.parseInt(bootstrapOperation.memberId().id()))
+                  .partitionId(bootstrapOperation.partitionId())
+                  .priority(bootstrapOperation.priority());
+          case final DeleteHistoryOperation deleteHistoryOperation ->
+              new TopologyChangeCompletedInner()
+                  .operation(TopologyChangeCompletedInner.OperationEnum.DELETE_HISTORY);
+          case final AwaitRedistributionCompletion redistributionCompletion ->
+              new TopologyChangeCompletedInner()
+                  .operation(TopologyChangeCompletedInner.OperationEnum.AWAIT_REDISTRIBUTION)
+                  .brokerId(Integer.parseInt(redistributionCompletion.memberId().id()));
+          case final AwaitRelocationCompletion relocationCompletion ->
+              new TopologyChangeCompletedInner()
+                  .operation(TopologyChangeCompletedInner.OperationEnum.AWAIT_RELOCATION)
+                  .brokerId(Integer.parseInt(relocationCompletion.memberId().id()));
+          case final UpdateRoutingState updateRoutingState ->
+              new TopologyChangeCompletedInner()
+                  .operation(TopologyChangeCompletedInner.OperationEnum.UPDATE_ROUTING_STATE)
+                  .brokerId(Integer.parseInt(updateRoutingState.memberId().id()));
           default ->
               new TopologyChangeCompletedInner()
                   .operation(TopologyChangeCompletedInner.OperationEnum.UNKNOWN);

@@ -49,6 +49,7 @@ import io.camunda.client.api.command.CreateUserCommandStep1;
 import io.camunda.client.api.command.DeleteAuthorizationCommandStep1;
 import io.camunda.client.api.command.DeleteDocumentCommandStep1;
 import io.camunda.client.api.command.DeleteGroupCommandStep1;
+import io.camunda.client.api.command.DeleteMappingRuleCommandStep1;
 import io.camunda.client.api.command.DeleteResourceCommandStep1;
 import io.camunda.client.api.command.DeleteRoleCommandStep1;
 import io.camunda.client.api.command.DeleteTenantCommandStep1;
@@ -119,7 +120,7 @@ import io.camunda.client.api.search.request.BatchOperationSearchRequest;
 import io.camunda.client.api.search.request.ClientsByGroupSearchRequest;
 import io.camunda.client.api.search.request.ClientsByRoleSearchRequest;
 import io.camunda.client.api.search.request.ClientsByTenantSearchRequest;
-import io.camunda.client.api.search.request.CorrelatedMessageSearchRequest;
+import io.camunda.client.api.search.request.CorrelatedMessageSubscriptionSearchRequest;
 import io.camunda.client.api.search.request.DecisionDefinitionSearchRequest;
 import io.camunda.client.api.search.request.DecisionInstanceSearchRequest;
 import io.camunda.client.api.search.request.DecisionRequirementsSearchRequest;
@@ -1594,6 +1595,22 @@ public interface CamundaClient extends AutoCloseable, JobClient {
   DeleteGroupCommandStep1 newDeleteGroupCommand(String groupId);
 
   /**
+   * Command to delete a mapping rule.
+   *
+   * <pre>
+   * camundaClient
+   *  .newDeleteMappingRuleCommand("mappingRuleId")
+   *  .send();
+   * </pre>
+   *
+   * <p>This command is only sent via REST over HTTP, not via gRPC <br>
+   *
+   * @param mappingRuleId the ID of the mapping rule to delete
+   * @return a builder for the command
+   */
+  DeleteMappingRuleCommandStep1 newDeleteMappingRuleCommand(String mappingRuleId);
+
+  /**
    * Command to assign a user to a group.
    *
    * <pre>
@@ -2707,18 +2724,18 @@ public interface CamundaClient extends AutoCloseable, JobClient {
   MessageSubscriptionSearchRequest newMessageSubscriptionSearchRequest();
 
   /**
-   * Executes a search request to query correlated messages.
+   * Executes a search request to query correlated message subscriptions.
    *
    * <pre>
    * camundaClient
-   *  .newCorrelatedMessageSearchRequest()
+   *  .newCorrelatedMessageSubscriptionSearchRequest()
    *  .filter((f) -> f.messageName("myMessage"))
    *  .sort((s) -> s.correlationTime().desc())
    *  .page((p) -> p.limit(100))
    *  .send();
    * </pre>
    *
-   * @return a builder for the correlated message search request
+   * @return a builder for the correlated message subscription search request
    */
-  CorrelatedMessageSearchRequest newCorrelatedMessageSearchRequest();
+  CorrelatedMessageSubscriptionSearchRequest newCorrelatedMessageSubscriptionSearchRequest();
 }

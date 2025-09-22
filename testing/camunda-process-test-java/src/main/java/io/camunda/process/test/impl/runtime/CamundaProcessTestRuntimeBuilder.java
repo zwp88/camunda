@@ -15,12 +15,10 @@
  */
 package io.camunda.process.test.impl.runtime;
 
-import io.camunda.client.CredentialsProvider;
 import io.camunda.process.test.api.CamundaClientBuilderFactory;
 import io.camunda.process.test.api.CamundaProcessTestRuntimeMode;
 import io.camunda.process.test.impl.containers.ContainerFactory;
 import java.net.URI;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,8 +72,6 @@ public class CamundaProcessTestRuntimeBuilder {
   private CamundaProcessTestRuntimeMode runtimeMode =
       CamundaProcessTestRuntimeDefaults.RUNTIME_MODE;
 
-  private Duration camundaClientRequestTimeout =
-      CamundaProcessTestRuntimeDefaults.CAMUNDA_CLIENT_REQUEST_TIMEOUT;
   private CamundaClientBuilderFactory remoteCamundaClientBuilderFactory =
       CamundaProcessTestRuntimeDefaults.CAMUNDA_CLIENT_BUILDER_FACTORY;
 
@@ -84,7 +80,13 @@ public class CamundaProcessTestRuntimeBuilder {
   private URI remoteConnectorsRestApiAddress =
       CamundaProcessTestRuntimeDefaults.REMOTE_CONNECTORS_REST_API_ADDRESS;
 
-  private boolean isMultitenancyEnabled = false;
+  private boolean isMultiTenancyEnabled = CamundaProcessTestRuntimeDefaults.MULTI_TENANCY_ENABLED;
+
+  private String coverageReportDirectory =
+      CamundaProcessTestRuntimeDefaults.COVERAGE_REPORT_DIRECTORY;
+
+  private List<String> coverageExcludedProcesses =
+      CamundaProcessTestRuntimeDefaults.COVERAGE_EXCLUDED_PROCESSES;
 
   // ============ For testing =================
 
@@ -213,14 +215,6 @@ public class CamundaProcessTestRuntimeBuilder {
     return this;
   }
 
-  public CamundaProcessTestRuntimeBuilder withCamundaClientRequestTimeout(
-      final Duration requestTimeout) {
-    this.camundaClientRequestTimeout = requestTimeout;
-    this.remoteCamundaClientBuilderFactory =
-        () -> remoteCamundaClientBuilderFactory.get().defaultRequestTimeout(requestTimeout);
-    return this;
-  }
-
   public CamundaProcessTestRuntimeBuilder withRemoteCamundaClientBuilderFactory(
       final CamundaClientBuilderFactory remoteCamundaClientBuilderFactory) {
     this.remoteCamundaClientBuilderFactory = remoteCamundaClientBuilderFactory;
@@ -239,15 +233,20 @@ public class CamundaProcessTestRuntimeBuilder {
     return this;
   }
 
-  public CamundaProcessTestRuntimeBuilder withCredentialsProvider(
-      final CredentialsProvider credentialsProvider) {
-    this.remoteCamundaClientBuilderFactory =
-        () -> remoteCamundaClientBuilderFactory.get().credentialsProvider(credentialsProvider);
+  public CamundaProcessTestRuntimeBuilder withMultiTenancyEnabled(final boolean enabled) {
+    isMultiTenancyEnabled = enabled;
     return this;
   }
 
-  public CamundaProcessTestRuntimeBuilder withMultitenancyEnabled(final boolean enabled) {
-    this.isMultitenancyEnabled = enabled;
+  public CamundaProcessTestRuntimeBuilder withCoverageReportDirectory(
+      final String coverageReportDirectory) {
+    this.coverageReportDirectory = coverageReportDirectory;
+    return this;
+  }
+
+  public CamundaProcessTestRuntimeBuilder withCoverageExcludedProcesses(
+      final List<String> coverageExcludedProcesses) {
+    this.coverageExcludedProcesses = coverageExcludedProcesses;
     return this;
   }
 
@@ -331,8 +330,8 @@ public class CamundaProcessTestRuntimeBuilder {
     return connectorsEnabled;
   }
 
-  public boolean isMultitenancyEnabled() {
-    return isMultitenancyEnabled;
+  public boolean isMultiTenancyEnabled() {
+    return isMultiTenancyEnabled;
   }
 
   public Map<String, String> getConnectorsSecrets() {
@@ -355,7 +354,11 @@ public class CamundaProcessTestRuntimeBuilder {
     return remoteConnectorsRestApiAddress;
   }
 
-  public Duration getCamundaClientRequestTimeout() {
-    return camundaClientRequestTimeout;
+  public String getCoverageReportDirectory() {
+    return coverageReportDirectory;
+  }
+
+  public List<String> getCoverageExcludedProcesses() {
+    return coverageExcludedProcesses;
   }
 }

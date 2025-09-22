@@ -58,7 +58,6 @@
       <column name="PARENT_PROCESS_INSTANCE_KEY" type="BIGINT" />
       <column name="PARENT_ELEMENT_INSTANCE_KEY" type="BIGINT" />
       <column name="NUM_INCIDENTS" type="SMALLINT" />
-      <column name="ELEMENT_ID" type="VARCHAR(255)"/>
       <column name="VERSION" type="SMALLINT" />
       <column name="PARTITION_ID" type="NUMBER"/>
       <column name="TREE_PATH" type="VARCHAR(4000)" />
@@ -605,14 +604,15 @@
       <column name="TENANT_ID" type="VARCHAR(255)">
         <constraints primaryKey="true"/>
       </column>
-      <column name="EVENT_TIME" type="TIMESTAMP WITH TIME ZONE(3)"/>
+      <column name="START_TIME" type="TIMESTAMP WITH TIME ZONE(3)"/>
+      <column name="END_TIME" type="TIMESTAMP WITH TIME ZONE(3)"/>
       <column name="EVENT_TYPE" type="INTEGER"/>
       <column name="EVENT_VALUE" type="BIGINT"/>
       <column name="PARTITION_ID" type="NUMBER"/>
     </createTable>
 
-    <createIndex tableName="${prefix}USAGE_METRIC" indexName="${prefix}IDX_USAGE_METRIC_EVENT_TIME">
-      <column name="EVENT_TIME"/>
+    <createIndex tableName="${prefix}USAGE_METRIC" indexName="${prefix}IDX_USAGE_METRIC_END_TIME">
+      <column name="END_TIME"/>
     </createIndex>
 
     <createTable tableName="${prefix}USAGE_METRIC_TU">
@@ -622,15 +622,16 @@
       <column name="TENANT_ID" type="VARCHAR(255)">
         <constraints primaryKey="true"/>
       </column>
-      <column name="EVENT_TIME" type="TIMESTAMP WITH TIME ZONE(3)"/>
+      <column name="START_TIME" type="TIMESTAMP WITH TIME ZONE(3)"/>
+      <column name="END_TIME" type="TIMESTAMP WITH TIME ZONE(3)"/>
       <column name="ASSIGNEE_HASH" type="BIGINT">
         <constraints primaryKey="true"/>
       </column>
       <column name="PARTITION_ID" type="NUMBER"/>
     </createTable>
 
-    <createIndex tableName="${prefix}USAGE_METRIC_TU" indexName="${prefix}IDX_USAGE_METRIC_TU_EVENT_TIME">
-      <column name="EVENT_TIME"/>
+    <createIndex tableName="${prefix}USAGE_METRIC_TU" indexName="${prefix}IDX_USAGE_METRIC_TU_END_TIME">
+      <column name="END_TIME"/>
     </createIndex>
 
     <modifySql dbms="mariadb">
@@ -674,8 +675,8 @@
     </modifySql>
   </changeSet>
 
-  <changeSet id="create_correlated_message_table" author="camunda">
-    <createTable tableName="${prefix}CORRELATED_MESSAGE">
+  <changeSet id="create_correlated_message_subscription_table" author="camunda">
+    <createTable tableName="${prefix}CORRELATED_MESSAGE_SUBSCRIPTION">
       <column name="CORRELATION_KEY" type="VARCHAR(255)"/>
       <column name="CORRELATION_TIME" type="TIMESTAMP WITH TIME ZONE(3)"/>
       <column name="FLOW_NODE_ID" type="VARCHAR(255)"/>
@@ -692,6 +693,7 @@
       <column name="SUBSCRIPTION_KEY" type="BIGINT">
         <constraints primaryKey="true"/>
       </column>
+      <column name="SUBSCRIPTION_TYPE" type="VARCHAR(255)"/>
       <column name="TENANT_ID" type="VARCHAR(255)"/>
     </createTable>
 

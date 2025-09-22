@@ -15,7 +15,7 @@
  */
 package io.camunda.client.jobhandling.result;
 
-import io.camunda.client.spring.bean.MethodInfo;
+import io.camunda.client.bean.MethodInfo;
 
 public interface ResultProcessorStrategy {
 
