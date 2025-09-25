@@ -148,8 +148,6 @@ test.describe('task details page', () => {
       useInnerText: true,
     });
 
-    await page.reload();
-
     await expect(taskDetailsPage.completeTaskButton).toBeDisabled({
       timeout: 60000,
     });
@@ -462,7 +460,7 @@ test.describe('task details page', () => {
     await taskDetailsPage.fillDatetimeField('Date', '1/1/3000');
     await taskDetailsPage.fillDatetimeField('Time', '12:00 PM');
     await taskDetailsPage.clickCompleteTaskButton();
-    await expect(taskDetailsPage.taskCompletedBanner).toBeVisible();
+    await expect(taskDetailsPage.taskCompletedBanner).toBeVisible({timeout: 30000});
     await taskPanelPage.filterBy('Completed');
     await taskPanelPage.assertCompletedHeadingVisible();
     await taskPanelPage.openTask('Date and Time Task');

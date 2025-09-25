@@ -17,12 +17,12 @@ import io.camunda.webapps.schema.descriptors.AbstractIndexDescriptor;
 import io.camunda.webapps.schema.descriptors.IndexDescriptors;
 import io.camunda.webapps.schema.descriptors.index.TasklistImportPositionIndex;
 import io.camunda.webapps.schema.descriptors.index.TasklistMetricIndex;
-import io.camunda.webapps.schema.descriptors.index.UsageMetricTUIndex;
 import io.camunda.webapps.schema.descriptors.template.DraftTaskVariableTemplate;
 import io.camunda.webapps.schema.descriptors.template.FlowNodeInstanceTemplate;
 import io.camunda.webapps.schema.descriptors.template.ListViewTemplate;
 import io.camunda.webapps.schema.descriptors.template.SnapshotTaskVariableTemplate;
 import io.camunda.webapps.schema.descriptors.template.TaskTemplate;
+import io.camunda.webapps.schema.descriptors.template.UsageMetricTUTemplate;
 import io.camunda.webapps.schema.descriptors.template.VariableTemplate;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -70,7 +70,7 @@ public class DevUtilExternalController {
             getIndexFullQualifiedName(TaskTemplate::new),
             getIndexFullQualifiedName(TasklistImportPositionIndex::new),
             getIndexFullQualifiedName(TasklistMetricIndex::new),
-            getIndexFullQualifiedName(UsageMetricTUIndex::new),
+            getIndexFullQualifiedName(UsageMetricTUTemplate::new),
             getIndexFullQualifiedName(VariableTemplate::new));
 
     try (final var elasticsearchClient = connector.createClient()) {
@@ -78,14 +78,15 @@ public class DevUtilExternalController {
           new ElasticsearchEngineClient(elasticsearchClient, connector.objectMapper());
       elasticsearchClient.indices().delete(r -> r.index(indicesToDelete));
       processCache.clearCache();
-      final var schemaManager =
+      try (final var schemaManager =
           new SchemaManager(
               searchEngineClient,
               indexDescriptors.indices(),
               indexDescriptors.templates(),
               configuration,
-              connector.objectMapper());
-      schemaManager.startup();
+              connector.objectMapper())) {
+        schemaManager.startup();
+      }
     }
     return ResponseEntity.ok().build();
   }

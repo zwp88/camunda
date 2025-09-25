@@ -747,6 +747,12 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -884,9 +890,6 @@
             <dependency>io.camunda:operate-webapp</dependency>
 
             <dependency>io.camunda:tasklist-data-generator</dependency>
-
-            <!-- used as resource but no classes -->
-            <dependency>io.camunda:camunda-db-rdbms-schema</dependency>
 
             <!-- Used to parse PKCS1 certificates -->
             <dependency>org.bouncycastle:bcprov-jdk18on</dependency>

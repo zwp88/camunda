@@ -4600,7 +4600,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        "204":
           description: The document was deleted successfully.
         "404":
           description: >
@@ -7793,6 +7793,9 @@ components:
         email:
           description: The email of the user.
           type: "string"
+      required:
+        - username
+        - password
     UserCreateResult:
       type: object
       properties:
